@@ -1,8 +1,8 @@
 ## AWS EKS Cluster log Collector Script.
 
 - You can pull this script and run it from your local machine against your EKS cluster with "ADMIN RBAC permission".
-- Run command: ./eks-cluster-log-collector.sh <namespace-name>
-- By default script will create a folder in your present directory with name <cluster-<Your-EKS-Cluster>.<DATE>-<TimeStamp>>
+- Run command: ./eks-cluster-log-collector.sh "<namespace-name>"
+- By default script will create a folder in your present directory with name "<cluster-<Your-EKS-Cluster>.<DATE>-<TimeStamp>>"
 - By default script will collect all the Pods logs and resources info that are running in "DEFAULT" Namespace if user does not provide Namespace detail.
 - It will create following list of files within the folder.
   1. ClusterDetails.txt --> It will include current EKS Cluster context information such as  Cluster ARN and control plan server
