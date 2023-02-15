@@ -66,10 +66,11 @@ end_append "1" "$COREDNS"
 # Collecting All the deployment descriptions/ yaml file  deployed in User Desired Namespace Or by default it will collect pods log running in default namespace
 Default_Namespace=${1:-'default'}
 echo "Collecting All The Running Deployment Information In Namespace:  ${Default_Namespace}, Review File: Describe.txt, yaml.txt "
-kubectl get ns --no-headers | while read -r line; do
-NAMESPACE=$(echo "$line" | awk '{print $1}')
-if [[ "$NAMESPACE" = "$Default_Namespace" ]];then
-    kubectl get deployment -n "$NAMESPACE" --no-headers | while read -r lines; do
+#kubectl get ns --no-headers | while read -r line; do
+#NAMESPACE=$(echo "$line" | awk '{print $1}')
+for NAMESPACE in $(kubectl get ns --no-headers); do
+    if [[ "$NAMESPACE" = "$Default_Namespace" ]]; then
+            kubectl get deployment -n "$NAMESPACE" --no-headers | while read -r lines; do
             DEPLOYMENT_NAME=$(echo "$lines" | awk '{print $1}')
             DEPLOYMENT="${OUTPUT_DIR}/${NAMESPACE}.${DEPLOYMENT_NAME}.describe.txt"
             kubectl describe deployment -n "$NAMESPACE" "$DEPLOYMENT_NAME" > "$DEPLOYMENT"
@@ -78,24 +79,28 @@ if [[ "$NAMESPACE" = "$Default_Namespace" ]];then
             kubectl get deployment -n "$NAMESPACE" "$DEPLOYMENT_NAME" -o yaml > "$DEPLOYMENT_YAML"
             done
 
-# Collecting All the K8 resources deployed in user specified namespace 
+         # Collecting All the K8 resources deployed in user specified namespace 
 
-        echo "Collecting Information About All Other Deployed Resources in "{$NAMESPACE}" Namespace , Review File: AllResourcesInfo.txt"
-            NS_RESOURCE_INFO="${OUTPUT_DIR}/AllResourcesInfo.txt"
-            append "$NS_RESOURCE_INFO" 
-            kubectl get all -n "$NAMESPACE" >>"$NS_RESOURCE_INFO" 
-            append "$NS_RESOURCE_INFO" 
+          echo "Collecting Information About All Other Deployed Resources in "{$NAMESPACE}" Namespace , Review File: AllResourcesInfo.txt"
+           NS_RESOURCE_INFO="${OUTPUT_DIR}/AllResourcesInfo.txt"
+           append "$NS_RESOURCE_INFO" 
+           kubectl get all -n "$NAMESPACE" >>"$NS_RESOURCE_INFO" 
+           append "$NS_RESOURCE_INFO" 
 
-        echo "Collecting Recent Events Log That Took Place Within Namespace ${NAMESPACE}, Review File: EventsInfo.txt"
+          echo "Collecting Recent Events Log That Took Place Within Namespace ${NAMESPACE}, Review File: EventsInfo.txt"
             EVENT_INFO_FILE="${OUTPUT_DIR}/EventsInfo.txt"
-            kubectl get events --sort-by=.metadata.creationTimestamp -n "$NAMESPACE" > "$EVENT_INFO_FILE" 
- fi  
+             kubectl get events --sort-by=.metadata.creationTimestamp -n "$NAMESPACE" > "$EVENT_INFO_FILE" 
+  
+    fi
+
 done
+
 
 echo "******* NOTE *******"
 print "Please Enter "yes" Or "y" If Your Current Issue Involves Kubernetes Resource Such As "{PVC, SC, PV, WorkerNode, WebHook}" So Script Can Continue Collect These Resource Information To Troubleshoot otherwise Enter "no" or "n""
 echo "*********************"
 read user_input
+user_input=$(echo "$user_input" | tr '[:upper:]' '[:lower:]')
 
 if [ "$user_input" = "yes" ] || [ "$user_input" = "y" ];then
 
