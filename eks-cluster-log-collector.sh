@@ -26,14 +26,12 @@ mkdir "$OUTPUT_DIR"
 
 echo "Collecting Information About Kubernetes Cluster: ${CLUSTERNAME}, Review File: ClusterDetails.txt "
 CLUSTER_INFO_FILE="${OUTPUT_DIR}/ClusterDetails.txt"
-FILENAME=CLUSTER_INFO_FILE
-append "$FILENAME"
-kubectl config current-context >> "$FILENAME"
-append "$FILENAME"
-kubectl cluster-info >> "$FILENAME"
-append "$FILENAME"
+kubectl config current-context > "$CLUSTER_INFO_FILE"
+append "$CLUSTER_INFO_FILE"
+kubectl cluster-info >> "$CLUSTER_INFO_FILE"
 
-echo "Collecting ConfigMap Details From Kubernetes Cluster: ${CLUSTERNAME}, Review File: ConfigMap_Info.txt "
+
+echo "Collecting ConfigMap Details From Cluster: ${CLUSTERNAME}, Review File: ConfigMap_Info.txt "
 CONFIG="${OUTPUT_DIR}/ConfigMap_Info.txt"
 echo "===[1] =========== AWS-Auth ConfigMap Details ===============" > "$CONFIG"
 kubectl describe configmap aws-auth -n kube-system >> "$CONFIG"
@@ -47,7 +45,7 @@ echo "===[3] =========== Kube-Proxy ConfigMap Details ===============" >> "$CONF
 kubectl describe configmap kube-proxy -n kube-system >> "$CONFIG"
 end_append "3" "$CONFIG"
 
-echo "Collecting AWS-Node & Kube-Proxy DaemonSet Details From Kubernetes Cluster: ${CLUSTERNAME}, Review File: DaemonSet_Info.txt "
+echo "Collecting AWS-Node & Kube-Proxy DaemonSet Details From Cluster: ${CLUSTERNAME}, Review File: DaemonSet_Info.txt "
 DAEMONSET="${OUTPUT_DIR}/DaemonSet_Info.txt"
 echo "===[1] =========== AWS-Node DaemonSet Details ===============" > "$DAEMONSET"
 kubectl describe daemonset aws-node -n kube-system >> "$DAEMONSET"
@@ -57,7 +55,7 @@ echo "===[2] =========== Kube-Proxy DaemonSet Details ===============" >> "$DAEM
 kubectl describe daemonset kube-proxy -n kube-system >> "$DAEMONSET"
 end_append "2" "$DAEMONSET"
 
-echo "Collecting CoreDNS Deployment Details From Kubernetes Cluster: ${CLUSTERNAME}, Review File: CoreDNS_Info.txt "
+echo "Collecting CoreDNS Deployment Details From Cluster: ${CLUSTERNAME}, Review File: CoreDNS_Info.txt "
 COREDNS="${OUTPUT_DIR}/CoreDNS_Info.txt"
 echo "===[1] =========== CoreDNS Deployment Details ===============" > "$COREDNS"
 kubectl describe deployment coredns -n kube-system >> "$COREDNS"
@@ -65,11 +63,11 @@ end_append "1" "$COREDNS"
 
 # Collecting All the deployment descriptions/ yaml file  deployed in User Desired Namespace Or by default it will collect pods log running in default namespace
 Default_Namespace=${1:-'default'}
-echo "Collecting All The Running Deployment Information In Namespace:  ${Default_Namespace}, Review File: Describe.txt, yaml.txt "
-#kubectl get ns --no-headers | while read -r line; do
-#NAMESPACE=$(echo "$line" | awk '{print $1}')
+i=0
 for NAMESPACE in $(kubectl get ns --no-headers); do
-    if [[ "$NAMESPACE" = "$Default_Namespace" ]]; then
+        if [[ "$NAMESPACE" = "$Default_Namespace" ]] ; then
+            (( i++ ))
+            echo "Collecting All The Running Deployment Details From Namespace: ${NAMESPACE}, Review File: Describe.txt, yaml.txt "
             kubectl get deployment -n "$NAMESPACE" --no-headers | while read -r lines; do
             DEPLOYMENT_NAME=$(echo "$lines" | awk '{print $1}')
             DEPLOYMENT="${OUTPUT_DIR}/${NAMESPACE}.${DEPLOYMENT_NAME}.describe.txt"
@@ -80,37 +78,40 @@ for NAMESPACE in $(kubectl get ns --no-headers); do
             done
 
          # Collecting All the K8 resources deployed in user specified namespace 
-
-          echo "Collecting Information About All Other Deployed Resources in "{$NAMESPACE}" Namespace , Review File: AllResourcesInfo.txt"
+          echo "Collecting All The Deployed Kubernetes Resources Details From Namespace: ${NAMESPACE}, Review File: AllResourcesInfo.txt"
            NS_RESOURCE_INFO="${OUTPUT_DIR}/AllResourcesInfo.txt"
            append "$NS_RESOURCE_INFO" 
            kubectl get all -n "$NAMESPACE" >>"$NS_RESOURCE_INFO" 
            append "$NS_RESOURCE_INFO" 
 
-          echo "Collecting Recent Events Log That Took Place Within Namespace ${NAMESPACE}, Review File: EventsInfo.txt"
+          echo "Collecting Recent Events Log Details From Namespace: ${NAMESPACE}, Review File: EventsInfo.txt"
             EVENT_INFO_FILE="${OUTPUT_DIR}/EventsInfo.txt"
              kubectl get events --sort-by=.metadata.creationTimestamp -n "$NAMESPACE" > "$EVENT_INFO_FILE" 
-  
-    fi
+        fi
 
 done
 
+if [[ $i -eq 0 ]];then
+    echo "******* ERROR: Entered Namespace Value Does Not Exist In ${CLUSTERNAME} , Please Check The Value *******"
+fi
+
+
 
 echo "******* NOTE *******"
-print "Please Enter "yes" Or "y" If Your Current Issue Involves Kubernetes Resource Such As "{PVC, SC, PV, WorkerNode, WebHook}" So Script Can Continue Collect These Resource Information To Troubleshoot otherwise Enter "no" or "n""
+print "Please Enter "yes" Or "y" If Your Current Issue Involves Kubernetes Resource Such As "{PVC, SC, PV, WorkerNode, WebHook}" So Script Can Continue Collect These Resource Information That Are Not Namespace Bound To Troubleshoot,  otherwise Enter "no" or "n""
 echo "*********************"
 read user_input
 user_input=$(echo "$user_input" | tr '[:upper:]' '[:lower:]')
 
 if [ "$user_input" = "yes" ] || [ "$user_input" = "y" ];then
 
-    echo "Collecting Information About All The Presently Running Worker Node In ${CLUSTERNAME}, Review File: WorkerNodeInfo.txt "
+    echo "Collecting Presently Running Worker Node Details From Cluster: ${CLUSTERNAME}, Review File: WorkerNodeInfo.txt "
     NODE_INFO_FILE="${OUTPUT_DIR}/WorkerNodeInfo.txt"
     kubectl describe node -A > "$NODE_INFO_FILE"
 
     # Collecting All the information about Persistent volume and storage class.
 
-    echo "Collecting Information About All The Persistent Volume & Storage Class Deployed In ${CLUSTERNAME}, Review File: StorageInfo.txt  "
+    echo "Collecting The Persistent Volume & Storage Class Details From Cluster: ${CLUSTERNAME}, Review File: StorageInfo.txt  "
     STORAGE_INFO_FILE="${OUTPUT_DIR}/StorageInfo.txt"
     echo "=== [1] ===========Storage Class Details===============" > "$STORAGE_INFO_FILE"
     kubectl get sc -A >> "$STORAGE_INFO_FILE"
@@ -130,7 +131,7 @@ if [ "$user_input" = "yes" ] || [ "$user_input" = "y" ];then
     kubectl describe pvc -A >> "$STORAGE_INFO_FILE"
     end_append "3" "$STORAGE_INFO_FILE"
 
-    echo "Collecting Information About All Configured WebHooks In ${CLUSTERNAME}, Review File: WebHookInfo.txt  "
+    echo "Collecting Configured WebHooks Details From Cluster: ${CLUSTERNAME}, Review File: WebHookInfo.txt  "
     WEBHOOK_INFO_FILE="${OUTPUT_DIR}/WebHookInfo.txt"
     append "$WEBHOOK_INFO_FILE"
     kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io -A >> "$WEBHOOK_INFO_FILE"
@@ -144,7 +145,7 @@ cd $ROOT_OUTPUT_DIR || exit 1
 
 echo " ******* INITIALIZING TARBALLING  ********"
 
-print "======= Collecting All Recently Occurring Errors and Failure In ${CLUSTERNAME}  , Review File: FoundErrors.txt ===" 
+print "======= Collecting Recently Occurring Errors and Failure From Cluster: ${CLUSTERNAME}  , Review File: FoundErrors.txt ===" 
 FOUND_ERROR_FILE="${OUTPUT_DIR}/FoundErrors.txt"
 egrep -Ein "fail|err|off" "${OUTPUT_DIR}"/*.${EXTENSION} > "$FOUND_ERROR_FILE"
 egrep -Ein "fail|err|off" "${OUTPUT_DIR}"/*.txt >> "$FOUND_ERROR_FILE"
