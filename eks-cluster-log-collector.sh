@@ -6,159 +6,153 @@ function print() {
   echo "======================================="
 }
 function append() {
-  echo "=======================================" >> $1
+  echo "====================[$(echo $1 | tr '[:lower:]' '[:upper:]')]===================" >> $2
 }
 function end_append() {
   echo "=== [$1] ============= END ===============================" >> $2
 }
 
+
+# print "Creating a Folder at: $ROOT_OUTPUT_DIR"
+
+#  Creating Output Directory
+CLUSTER_INFO=$(kubectl config view --minify -ojsonpath='{.clusters[0]}')
+CLUSTERNAME=$(echo $CLUSTER_INFO | sed 's/^[^=]*:cluster\///' | sed 's/..$//')
 ROOT_OUTPUT_DIR=$PWD
-print "Creating a Folder at: $ROOT_OUTPUT_DIR"
-kubectl config current-context > clusterName.txt
-CLUSTERNAME=$(sed 's/^[^=]*://' clusterName.txt)
 TIME=$(date "+%Y%m%d-%Hh:%Mm:%Ss")
-OUTPUT_DIR_NAME=$(sed 's|r/|r-|g' <<< "${CLUSTERNAME}").$TIME
-OUTPUT_DIR="${OUTPUT_DIR_NAME}"
-EXTENSION='log'
-print "${CLUSTERNAME} Log Collected In Folder :  $OUTPUT_DIR"
-cd $ROOT_OUTPUT_DIR
-mkdir "$OUTPUT_DIR"
+OUTPUT_DIR_NAME=$(sed 's|r/|r-|g' <<< "${CLUSTERNAME}")_$TIME  # Use '_' while constructing folder/filename
+mkdir "$OUTPUT_DIR_NAME"
 
-echo "Collecting Information About Kubernetes Cluster: ${CLUSTERNAME}, Review File: ClusterDetails.txt "
-CLUSTER_INFO_FILE="${OUTPUT_DIR}/ClusterDetails.txt"
-kubectl config current-context > "$CLUSTER_INFO_FILE"
-append "$CLUSTER_INFO_FILE"
-kubectl cluster-info >> "$CLUSTER_INFO_FILE"
+# Collecting Cluster Details
+echo "Collecting Cluster Details: ${CLUSTERNAME}, Review File: Cluster_Info.json "
+echo $CLUSTER_INFO > "$CLUSTER_INFO_FILE"
+
+# kubectl config current-context > "$CLUSTER_INFO_FILE"
+# append "$CLUSTER_INFO_FILE"
+# kubectl cluster-info >> "$CLUSTER_INFO_FILE"
+
+# Output File Names:
+CLUSTER_INFO_FILE="${OUTPUT_DIR}/Cluster_Info.json"
+CONFIG="${OUTPUT_DIR}/ConfigMaps.yaml"
+DAEMONSET="${OUTPUT_DIR}/DaemonSets.yaml"
+DEPLOYMENT="${OUTPUT_DIR}/Deployments.yaml"
+
+# OUTPUT_DIR="${OUTPUT_DIR_NAME}"
+# EXTENSION='log' # Not sure the usage of this
+# print "${CLUSTERNAME} Log Collected In Folder :  $OUTPUT_DIR"
+# cd $ROOT_OUTPUT_DIR
 
 
-echo "Collecting ConfigMap Details From Cluster: ${CLUSTERNAME}, Review File: ConfigMap_Info.txt "
-CONFIG="${OUTPUT_DIR}/ConfigMap_Info.txt"
-echo "===[1] =========== AWS-Auth ConfigMap Details ===============" > "$CONFIG"
-kubectl describe configmap aws-auth -n kube-system >> "$CONFIG"
-end_append "1" "$CONFIG"
+KUBE_SYSTEM_CM=(
+  aws-auth
+  coredns
+  kube-proxy
+)
 
-echo "===[2] =========== CoreDNS ConfigMap Details ===============" >> "$CONFIG"
-kubectl describe configmap coredns -n kube-system >> "$CONFIG"
-end_append "2" "$CONFIG"
+# Names of DS and DEPLOY can be replaced with labels - shown in comment
 
-echo "===[3] =========== Kube-Proxy ConfigMap Details ===============" >> "$CONFIG"
-kubectl describe configmap kube-proxy -n kube-system >> "$CONFIG"
-end_append "3" "$CONFIG"
+KUBE_SYSTEM_DS=(
+  kube-proxy   #  k8s-app=kube-proxy
+  aws-node    # app.kubernetes.io/name=aws-node
+  ebs-csi-node  # app.kubernetes.io/name=aws-ebs-csi-driver
+  efs-csi-node  # app.kubernetes.io/name=aws-efs-csi-driver
+  # we can append other add-ons plugins here
+)
 
-echo "Collecting AWS-Node & Kube-Proxy DaemonSet Details From Cluster: ${CLUSTERNAME}, Review File: DaemonSet_Info.txt "
-DAEMONSET="${OUTPUT_DIR}/DaemonSet_Info.txt"
-echo "===[1] =========== AWS-Node DaemonSet Details ===============" > "$DAEMONSET"
-kubectl describe daemonset aws-node -n kube-system >> "$DAEMONSET"
-end_append "1" "$DAEMONSET"
+KUBE_SYSTEM_DEPS=(
+  coredns    # k8s-app=kube-dns
+  aws-load-balancer-controller #  app.kubernetes.io/name=aws-load-balancer-controller
+  ebs-csi-controller  # app.kubernetes.io/name=aws-ebs-csi-driver
+  efs-csi-controller # app.kubernetes.io/name=aws-efs-csi-driver
+  # we can append other add-ons plugins here
+)
 
-echo "===[2] =========== Kube-Proxy DaemonSet Details ===============" >> "$DAEMONSET"
-kubectl describe daemonset kube-proxy -n kube-system >> "$DAEMONSET"
-end_append "2" "$DAEMONSET"
 
-echo "Collecting CoreDNS Deployment Details From Cluster: ${CLUSTERNAME}, Review File: CoreDNS_Info.txt "
-COREDNS="${OUTPUT_DIR}/CoreDNS_Info.txt"
-echo "===[1] =========== CoreDNS Deployment Details ===============" > "$COREDNS"
-kubectl describe deployment coredns -n kube-system >> "$COREDNS"
-end_append "1" "$COREDNS"
-
-# Collecting All the deployment descriptions/ yaml file  deployed in User Desired Namespace Or by default it will collect pods log running in default namespace
-Default_Namespace=${1:-'default'}
-i=0
-for NAMESPACE in $(kubectl get ns --no-headers); do
-        if [[ "$NAMESPACE" = "$Default_Namespace" ]] ; then
-            (( i++ ))
-            echo "Collecting All The Running Deployment Details From Namespace: ${NAMESPACE}, Review File: Describe.txt, yaml.txt "
-            kubectl get deployment -n "$NAMESPACE" --no-headers | while read -r lines; do
-            DEPLOYMENT_NAME=$(echo "$lines" | awk '{print $1}')
-            DEPLOYMENT="${OUTPUT_DIR}/${NAMESPACE}.${DEPLOYMENT_NAME}.describe.txt"
-            kubectl describe deployment -n "$NAMESPACE" "$DEPLOYMENT_NAME" > "$DEPLOYMENT"
-
-            DEPLOYMENT_YAML="${OUTPUT_DIR}/${NAMESPACE}.${DEPLOYMENT_NAME}.yaml.txt"
-            kubectl get deployment -n "$NAMESPACE" "$DEPLOYMENT_NAME" -o yaml > "$DEPLOYMENT_YAML"
-            done
-
-         # Collecting All the K8 resources deployed in user specified namespace 
-          echo "Collecting All The Deployed Kubernetes Resources Details From Namespace: ${NAMESPACE}, Review File: AllResourcesInfo.txt"
-           NS_RESOURCE_INFO="${OUTPUT_DIR}/AllResourcesInfo.txt"
-           append "$NS_RESOURCE_INFO" 
-           kubectl get all -n "$NAMESPACE" >>"$NS_RESOURCE_INFO" 
-           append "$NS_RESOURCE_INFO" 
-
-          echo "Collecting Recent Events Log Details From Namespace: ${NAMESPACE}, Review File: EventsInfo.txt"
-            EVENT_INFO_FILE="${OUTPUT_DIR}/EventsInfo.txt"
-             kubectl get events --sort-by=.metadata.creationTimestamp -n "$NAMESPACE" > "$EVENT_INFO_FILE" 
-        fi
-
+# We can remove the clusterName from every line starting with "collecting"
+echo "Collecting ConfigMap Details From Cluster: ${CLUSTERNAME}, Review File: ConfigMaps.yaml "
+for cm in ${KUBE_SYSTEM_CM[*]}; do
+  append " ${cm} " "$CONFIG"
+  kubectl get configmap -n kube-system ${cm} -o yaml >> "$CONFIG"
+  append "" "$CONFIG"
 done
 
-if [[ $i -eq 0 ]];then
-    echo "******* ERROR: Entered Namespace Value Does Not Exist In ${CLUSTERNAME} , Please Check The Value *******"
+
+
+echo "Collecting DaemonSet Details From Cluster: ${CLUSTERNAME}, Review File: DaemonSets.yaml "
+for ds in ${KUBE_SYSTEM_DS[*]}; do
+  append " ${ds} " "$DAEMONSET"
+  kubectl get daemonset -n kube-system ${ds} -o yaml >> "$DAEMONSET"
+  append "" "$DAEMONSET"
+done
+
+
+
+echo "Collecting Deployment Details From Cluster: ${CLUSTERNAME}, Review File: Deployments.yaml "
+for deploy in ${KUBE_SYSTEM_DEPS[*]}; do
+  append " ${deploy} " "$DEPLOYMENT"
+  kubectl get daemonset -n kube-system ${deploy} -o yaml >> "$DEPLOYMENT"
+  append "" "$DEPLOYMENT"
+done
+
+
+
+# Collecting resources for User Desired POD and Namespace Namespace
+
+POD_NAME=${1:-''}   # Do we need a default value here?
+NAMESPACE=${2:-'default'}
+
+
+if [[ $(kubectl get ns $NAMESPACE) ]] && [[ $(kubectl get pod $POD_NAME) ]] ; then ## check if namespace and Pod exists then proceed
+
+  # echo "Collecting All The Running Deployment Details From Namespace: ${NAMESPACE}, Review File: Describe.txt, yaml.txt "
+  echo "Collecting Resource related to ${POD_NAME}, Review File: ${POD_NAME}_get.json, ${POD_NAME}_describe.txt"
+
+  POD=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojson) 
+  echo $POD > "${OUTPUT_DIR_NAME}/${POD_NAME}_get.json" 
+  POD_OWNER_KIND=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')  # All such repeated kubectl calls can be reduced by using jq
+  POD_OWNER_NAME=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${POD_OWNER_TYPE}\"")].name}")
+
+  POD_OWNER=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -o json)  # Get DS/DEPLOY/STS
+  
+
+  # Get Service Account details
+  POD_SA_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.spec.template.spec.serviceAccountName}')
+  kubectl get serviceaccount $POD_SA_NAME -n $NAMESPACE -ojson
+
+  # Get Service Details 
+
+
+  LABELS=$(kubectl get deploy coredns -ojsonpath='{.spec.template.metadata.labels}')
+  LABEL_LIST=($(echo $LABELS | jq -r 'keys[] as $k | "\($k)=\(.[$k])"'))   # Fetch Label list
+
+
+  # Iterate over labels to find the service
+  for label in ${LABEL_LIST[*]}; do
+    kubectl get svc -n $NAMESPACE -l $label -ojson
+    kubectl describe svc -n $NAMESPACE -l $label
+  done
+
+  # TODO: Can we get Ingress resources as well?
+
+  # Get PVC/PV for the pod
+  VOLUMES=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojson | jq -r '.spec.volumes[] | select (.persistentVolumeClaim)') # Get PVC Names
+  
+  for volume in $(echo $VOLUMES | jq -r '.persistentVolumeClaim.claimName'); do
+    pvc=$(kubectl get pvc $volume -n kube-system -o json)   # Get PVC JSON
+    echo $pvc
+    kubectl get pv $(echo $pvc | jq -r '.spec.volumeName') -o json  #Get Associated PV JSON
+  done
+
+  # Get Mounted ConfigMaps for the pod
+
+  CMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojson | jq -r '.spec.volumes[] | select (.configMap)')
+
+  for cm in $(echo $CMS | jq -r '.configMap.name'); do
+
+    kubectl get cm $cm -o json  #Get Associated ConfigMap JSON
+
+  done
+
 fi
 
 
-
-echo "******* NOTE *******"
-print "Please Enter "yes" Or "y" If Your Current Issue Involves Kubernetes Resource Such As "{PVC, SC, PV, WorkerNode, WebHook}" So Script Can Continue Collect These Resource Information That Are Not Namespace Bound To Troubleshoot,  otherwise Enter "no" or "n""
-echo "*********************"
-read user_input
-user_input=$(echo "$user_input" | tr '[:upper:]' '[:lower:]')
-
-if [ "$user_input" = "yes" ] || [ "$user_input" = "y" ];then
-
-    echo "Collecting Presently Running Worker Node Details From Cluster: ${CLUSTERNAME}, Review File: WorkerNodeInfo.txt "
-    NODE_INFO_FILE="${OUTPUT_DIR}/WorkerNodeInfo.txt"
-    kubectl describe node -A > "$NODE_INFO_FILE"
-
-    # Collecting All the information about Persistent volume and storage class.
-
-    echo "Collecting The Persistent Volume & Storage Class Details From Cluster: ${CLUSTERNAME}, Review File: StorageInfo.txt  "
-    STORAGE_INFO_FILE="${OUTPUT_DIR}/StorageInfo.txt"
-    echo "=== [1] ===========Storage Class Details===============" > "$STORAGE_INFO_FILE"
-    kubectl get sc -A >> "$STORAGE_INFO_FILE"
-    append "$STORAGE_INFO_FILE"
-    kubectl describe sc -A >> "$STORAGE_INFO_FILE"
-    end_append "1" "$STORAGE_INFO_FILE"
-
-    echo "=== [2] ===========PersistentVolume Details===============" >> "$STORAGE_INFO_FILE"
-    kubectl get pv -A >> "$STORAGE_INFO_FILE"
-    append "$STORAGE_INFO_FILE"
-    kubectl describe pv -A >> "$STORAGE_INFO_FILE"
-    end_append "2" "$STORAGE_INFO_FILE"
-   
-    echo "=== [3] ===========PersistentVolume Claim Details===============" >> "$STORAGE_INFO_FILE"
-    kubectl get pvc -A >> "$STORAGE_INFO_FILE"
-    append "$STORAGE_INFO_FILE"
-    kubectl describe pvc -A >> "$STORAGE_INFO_FILE"
-    end_append "3" "$STORAGE_INFO_FILE"
-
-    echo "Collecting Configured WebHooks Details From Cluster: ${CLUSTERNAME}, Review File: WebHookInfo.txt  "
-    WEBHOOK_INFO_FILE="${OUTPUT_DIR}/WebHookInfo.txt"
-    append "$WEBHOOK_INFO_FILE"
-    kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io -A >> "$WEBHOOK_INFO_FILE"
-    append "$WEBHOOK_INFO_FILE"
-    kubectl describe mutatingwebhookconfigurations.admissionregistration.k8s.io -A >> "$WEBHOOK_INFO_FILE"
-    append "$WEBHOOK_INFO_FILE"
-fi
-
-CWD=$(pwd)
-cd $ROOT_OUTPUT_DIR || exit 1
-
-echo " ******* INITIALIZING TARBALLING  ********"
-
-print "======= Collecting Recently Occurring Errors and Failure From Cluster: ${CLUSTERNAME}  , Review File: FoundErrors.txt ===" 
-FOUND_ERROR_FILE="${OUTPUT_DIR}/FoundErrors.txt"
-egrep -Ein "fail|err|off" "${OUTPUT_DIR}"/*.${EXTENSION} > "$FOUND_ERROR_FILE"
-egrep -Ein "fail|err|off" "${OUTPUT_DIR}"/*.txt >> "$FOUND_ERROR_FILE"
-TARBALL_FILE_NAME="${OUTPUT_DIR_NAME}.tar.gz"
-echo "- File Created Successfully:  ${TARBALL_FILE_NAME} "
-tar -czf "./${TARBALL_FILE_NAME}" "./${OUTPUT_DIR_NAME}" 
-mv "./${TARBALL_FILE_NAME}" "$OUTPUT_DIR" 
-
-echo " ***** FINISHING TARBALLING ***** "
-print "==== Please Share  Located Tarball Folder On Your EKS Support Case: "${OUTPUT_DIR}/${TARBALL_FILE_NAME} "   ======="
-echo "==== For Further Troubleshooting ======"
-echo " - Review Files Located At Folder :  $OUTPUT_DIR"
-echo " - Search For FoundErrors.txt File To Check All Cluster Errors and Recent Failure "
-echo " - Command to search log:  grep -Ei \"fail|err\" ${OUTPUT_DIR}/*.log"
-echo "========================== END OF SCRIPT EXECUTION ========================="
-cd "$CWD" || exit 1
