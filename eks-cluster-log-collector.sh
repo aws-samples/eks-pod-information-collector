@@ -1,158 +1,171 @@
 #!/bin/bash
 
+#Helper Functions
+
 function print() {
-  echo "======================================="
-  echo "$@"
-  echo "======================================="
+  echo -e "$@"
 }
+
 function append() {
   echo "====================[$(echo $1 | tr '[:lower:]' '[:upper:]')]===================" >> $2
 }
-function end_append() {
-  echo "=== [$1] ============= END ===============================" >> $2
+
+function error() {
+  echo -e "\n\t[ERROR] $* \n"
+  exit 1
 }
 
+function warn() {
+  echo -e "\n\t[WARNING] $* \n"
+}
 
-# print "Creating a Folder at: $ROOT_OUTPUT_DIR"
+#TODO: Can this be optimized?
+# Function to validate the inputs
+function validate_pod_ns(){
+  if [[ -z $1 ]] && [[ -z $2 ]]; then
+    warn "POD_NAME & NAMESPACE Both are required!!"
+    warn "Collecting Default resources in KUBE-SYSTEM namespace!!" 
+  else 
+    if [[ ! $(kubectl get ns $2 2> /dev/null) ]] ; then
+      error "Namespace ${2} not found!!"
+    elif [[ ! $(kubectl get pod $1 -n $2 2> /dev/null) ]]; then
+      error "Pod ${1} not found!!"
+    fi
+    VALID_INPUTS='VALID'
+  fi
+}
 
-#  Creating Output Directory
+# Default Resrouce Lists
+# Names of Default ConfigMaps
+KUBE_SYSTEM_CM=(
+  aws-auth
+  coredns
+  kube-proxy
+  amazon-vpc-cni
+)
+
+# Names of Default Daemonsets and Deployment
+KUBE_SYSTEM_DS_DEP=(
+  aws-node
+  kube-proxy
+  coredns
+)
+
+# Parse & Validate Arguments
+POD_NAME=${1:-''} 
+NAMESPACE=${2:-''}
+validate_pod_ns $POD_NAME $NAMESPACE
+
+# Creating Output Directory
 CLUSTER_INFO=$(kubectl config view --minify -ojsonpath='{.clusters[0]}')
 CLUSTERNAME=$(echo $CLUSTER_INFO | sed 's/^[^=]*:cluster\///' | sed 's/..$//')
 ROOT_OUTPUT_DIR=$PWD
 TIME=$(date "+%Y%m%d-%Hh:%Mm:%Ss")
-OUTPUT_DIR_NAME=$(sed 's|r/|r-|g' <<< "${CLUSTERNAME}")_$TIME  # Use '_' while constructing folder/filename
+OUTPUT_DIR_NAME=$(sed 's|r/|r-|g' <<< "${CLUSTERNAME}")_$TIME  
 mkdir "$OUTPUT_DIR_NAME"
+OUTPUT_DIR="$PWD/${OUTPUT_DIR_NAME}"
 
-# Collecting Cluster Details
-echo "Collecting Cluster Details: ${CLUSTERNAME}, Review File: Cluster_Info.json "
-echo $CLUSTER_INFO > "$CLUSTER_INFO_FILE"
-
-# kubectl config current-context > "$CLUSTER_INFO_FILE"
-# append "$CLUSTER_INFO_FILE"
-# kubectl cluster-info >> "$CLUSTER_INFO_FILE"
-
-# Output File Names:
+# Default Output File Names:
 CLUSTER_INFO_FILE="${OUTPUT_DIR}/Cluster_Info.json"
 CONFIG="${OUTPUT_DIR}/ConfigMaps.yaml"
 DAEMONSET="${OUTPUT_DIR}/DaemonSets.yaml"
 DEPLOYMENT="${OUTPUT_DIR}/Deployments.yaml"
 
-# OUTPUT_DIR="${OUTPUT_DIR_NAME}"
-# EXTENSION='log' # Not sure the usage of this
-# print "${CLUSTERNAME} Log Collected In Folder :  $OUTPUT_DIR"
-# cd $ROOT_OUTPUT_DIR
+# Collecting Cluster Details
+print "Collecting information in Directory: ${OUTPUT_DIR}"
+print "Collecting Cluster Details, Review File: Cluster_Info.json "
+echo $CLUSTER_INFO > "$CLUSTER_INFO_FILE"
 
+# Collecting Default resources in KUBE-SYSTEM
+print "Collecting Default resources in KUBE-SYSTEM, Review Files ConfigMaps.yaml, DaemonSets.yaml, Deployments.yaml"
 
-KUBE_SYSTEM_CM=(
-  aws-auth
-  coredns
-  kube-proxy
-)
-
-# Names of DS and DEPLOY can be replaced with labels - shown in comment
-
-KUBE_SYSTEM_DS=(
-  kube-proxy   #  k8s-app=kube-proxy
-  aws-node    # app.kubernetes.io/name=aws-node
-  ebs-csi-node  # app.kubernetes.io/name=aws-ebs-csi-driver
-  efs-csi-node  # app.kubernetes.io/name=aws-efs-csi-driver
-  # we can append other add-ons plugins here
-)
-
-KUBE_SYSTEM_DEPS=(
-  coredns    # k8s-app=kube-dns
-  aws-load-balancer-controller #  app.kubernetes.io/name=aws-load-balancer-controller
-  ebs-csi-controller  # app.kubernetes.io/name=aws-ebs-csi-driver
-  efs-csi-controller # app.kubernetes.io/name=aws-efs-csi-driver
-  # we can append other add-ons plugins here
-)
-
-
-# We can remove the clusterName from every line starting with "collecting"
-echo "Collecting ConfigMap Details From Cluster: ${CLUSTERNAME}, Review File: ConfigMaps.yaml "
-for cm in ${KUBE_SYSTEM_CM[*]}; do
-  append " ${cm} " "$CONFIG"
-  kubectl get configmap -n kube-system ${cm} -o yaml >> "$CONFIG"
+for resource in ${KUBE_SYSTEM_CM[*]}; do
+  append " ${resource} " "$CONFIG"
+  kubectl get configmap -n kube-system ${resource} -o yaml >> "$CONFIG"
   append "" "$CONFIG"
 done
 
-
-
-echo "Collecting DaemonSet Details From Cluster: ${CLUSTERNAME}, Review File: DaemonSets.yaml "
-for ds in ${KUBE_SYSTEM_DS[*]}; do
-  append " ${ds} " "$DAEMONSET"
-  kubectl get daemonset -n kube-system ${ds} -o yaml >> "$DAEMONSET"
-  append "" "$DAEMONSET"
+for resource in ${KUBE_SYSTEM_DS_DEP[*]}; do
+  if [[ ${resource} == 'coredns' ]] ; then 
+    append " ${resource} " "$DEPLOYMENT"
+    kubectl get deployment -n kube-system ${resource} -o yaml >> "$DEPLOYMENT"
+    append "" "$DEPLOYMENT"
+  else
+    append " ${resource} " "$DAEMONSET"
+    kubectl get daemonset -n kube-system ${resource} -o yaml >> "$DAEMONSET"
+    append "" "$DAEMONSET"
+  fi
 done
 
+# Collecting resources for User Desired POD and Namespace
+if [[ ${VALID_INPUTS} == 'VALID' ]] ; then 
 
+  # Creating POD specific output directory
+  POD_OUTPUT_DIR="${OUTPUT_DIR}/${POD_NAME}_${NAMESPACE}"
+  mkdir "$POD_OUTPUT_DIR"
 
-echo "Collecting Deployment Details From Cluster: ${CLUSTERNAME}, Review File: Deployments.yaml "
-for deploy in ${KUBE_SYSTEM_DEPS[*]}; do
-  append " ${deploy} " "$DEPLOYMENT"
-  kubectl get daemonset -n kube-system ${deploy} -o yaml >> "$DEPLOYMENT"
-  append "" "$DEPLOYMENT"
-done
-
-
-
-# Collecting resources for User Desired POD and Namespace Namespace
-
-POD_NAME=${1:-''}   # Do we need a default value here?
-NAMESPACE=${2:-'default'}
-
-
-if [[ $(kubectl get ns $NAMESPACE) ]] && [[ $(kubectl get pod $POD_NAME) ]] ; then ## check if namespace and Pod exists then proceed
-
-  # echo "Collecting All The Running Deployment Details From Namespace: ${NAMESPACE}, Review File: Describe.txt, yaml.txt "
-  echo "Collecting Resource related to ${POD_NAME}, Review File: ${POD_NAME}_get.json, ${POD_NAME}_describe.txt"
-
-  POD=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojson) 
-  echo $POD > "${OUTPUT_DIR_NAME}/${POD_NAME}_get.json" 
-  POD_OWNER_KIND=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')  # All such repeated kubectl calls can be reduced by using jq
-  POD_OWNER_NAME=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${POD_OWNER_TYPE}\"")].name}")
-
-  POD_OWNER=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -o json)  # Get DS/DEPLOY/STS
+  print "Collecting Resource related to ${POD_NAME}, Review Files in Directory: ${POD_NAME}_${NAMESPACE}"
   
+  #Get Pod Details 
+  kubectl get pod $POD_NAME -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/Pod_${POD_NAME}.json" 
+  kubectl describe pod  $POD_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/Pod_${POD_NAME}.txt"
+  
+
+  # Get NODE Info.
+  NODE=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{.spec.nodeName}') 
+  kubectl get node $NODE -ojson > "${POD_OUTPUT_DIR}/Node_${NODE}.json"
+  kubectl describe node $NODE > "${POD_OUTPUT_DIR}/Node_${NODE}.txt"
+
+  # TODO: Add support for non apps/v1 resources
+
+  # Get Owner Details of DS/RS/Deploy/STS
+  POD_OWNER_KIND=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')  # All such repeated kubectl calls can be reduced by using jq
+  POD_OWNER_NAME=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${POD_OWNER_KIND}\"")].name}")
+  kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -o json > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.json"
+  kubectl describe $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.txt"
+
+  # TODO: Can this be achieved using while?
+  if [[ $(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath={.metadata.ownerReferences}) ]] ; then
+    SUPER_OWNER_KIND=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')
+    SUPER_OWNER_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${SUPER_OWNER_KIND}\"")].name}")
+    kubectl get $SUPER_OWNER_KIND $SUPER_OWNER_NAME -n $NAMESPACE -o json > "${POD_OUTPUT_DIR}/${SUPER_OWNER_KIND}_${SUPER_OWNER_NAME}.json"
+    kubectl describe $SUPER_OWNER_KIND $SUPER_OWNER_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/${SUPER_OWNER_KIND}_${SUPER_OWNER_NAME}.txt"
+  fi
 
   # Get Service Account details
   POD_SA_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.spec.template.spec.serviceAccountName}')
-  kubectl get serviceaccount $POD_SA_NAME -n $NAMESPACE -ojson
+  kubectl get serviceaccount $POD_SA_NAME -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/SA_${POD_SA_NAME}.json"
 
   # Get Service Details 
+  LABEL_LIST=$(kubectl get pod $POD_NAME -n $NAMESPACE --show-labels --no-headers | awk '{print $NF}' | sed 's/\,/\n/g')
 
-
-  LABELS=$(kubectl get deploy coredns -ojsonpath='{.spec.template.metadata.labels}')
-  LABEL_LIST=($(echo $LABELS | jq -r 'keys[] as $k | "\($k)=\(.[$k])"'))   # Fetch Label list
-
-
-  # Iterate over labels to find the service
+  # Iterate over labels to find the service because their no direct reference to service and deployment
   for label in ${LABEL_LIST[*]}; do
-    kubectl get svc -n $NAMESPACE -l $label -ojson
-    kubectl describe svc -n $NAMESPACE -l $label
+    kubectl get svc -n $NAMESPACE -l $label -ojson >> "${POD_OUTPUT_DIR}/Services.json"
+    kubectl describe svc -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
   done
 
   # TODO: Can we get Ingress resources as well?
 
   # Get PVC/PV for the pod
-  VOLUMES=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojson | jq -r '.spec.volumes[] | select (.persistentVolumeClaim)') # Get PVC Names
-  
-  for volume in $(echo $VOLUMES | jq -r '.persistentVolumeClaim.claimName'); do
-    pvc=$(kubectl get pvc $volume -n kube-system -o json)   # Get PVC JSON
-    echo $pvc
-    kubectl get pv $(echo $pvc | jq -r '.spec.volumeName') -o json  #Get Associated PV JSON
+  VOLUMES_CLAIMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{range .spec.volumes[*]}{.persistentVolumeClaim.claimName}{"\n"}{end}') # Get PVC Names
+  for claim in ${VOLUMES_CLAIMS[*]}; do
+    kubectl get pvc $claim -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/PVC_${claim}.json"
+    kubectl describe pvc $claim -n $NAMESPACE > "${POD_OUTPUT_DIR}/PVC_${claim}.json"
+    PV=$(kubectl get pvc $claim -n $NAMESPACE -o jsonpath={'.spec.volumeName'})
+    kubectl get pv $PV -o json > "${POD_OUTPUT_DIR}/PV_${PV}.json"  #Get Associated PV JSON
+    kubectl describe pv $PV > "${POD_OUTPUT_DIR}/PV_${PV}.txt"
   done
 
   # Get Mounted ConfigMaps for the pod
-
-  CMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojson | jq -r '.spec.volumes[] | select (.configMap)')
-
-  for cm in $(echo $CMS | jq -r '.configMap.name'); do
-
-    kubectl get cm $cm -o json  #Get Associated ConfigMap JSON
-
+  # TODO: Should we get/read the configMap as well?
+  CMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{range .spec.volumes[*]}{.configMap.name}{"\n"}{end}')
+  for cm in ${CMS[*]}; do
+    if [[ ! $(kubectl get cm $cm -n $NAMESPACE) ]] ; then  #Get Associated ConfigMap JSON
+      echo "ConfigMap ${cm} is missing"
+    fi
   done
-
+  
 fi
 
 
