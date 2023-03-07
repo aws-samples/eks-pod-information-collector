@@ -70,6 +70,8 @@ CLUSTER_INFO_FILE="${OUTPUT_DIR}/Cluster_Info.json"
 CONFIG="${OUTPUT_DIR}/ConfigMaps.yaml"
 DAEMONSET="${OUTPUT_DIR}/DaemonSets.yaml"
 DEPLOYMENT="${OUTPUT_DIR}/Deployments.yaml"
+MUTATING_WEBHOOKS="${OUTPUT_DIR}/MutatingWebhook.yaml"
+VALIDATING_WEBHOOKS="${OUTPUT_DIR}/ValidatingWebhook.yaml"
 
 # Collecting Cluster Details
 print "Collecting information in Directory: ${OUTPUT_DIR}"
@@ -119,18 +121,15 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   # TODO: Add support for non apps/v1 resources
 
   # Get Owner Details of DS/RS/Deploy/STS
-  POD_OWNER_KIND=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')  # All such repeated kubectl calls can be reduced by using jq
-  POD_OWNER_NAME=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${POD_OWNER_KIND}\"")].name}")
-  kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -o json > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.json"
-  kubectl describe $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.txt"
-
-  # TODO: Can this be achieved using while?
-  if [[ $(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath={.metadata.ownerReferences}) ]] ; then
-    SUPER_OWNER_KIND=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')
-    SUPER_OWNER_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${SUPER_OWNER_KIND}\"")].name}")
-    kubectl get $SUPER_OWNER_KIND $SUPER_OWNER_NAME -n $NAMESPACE -o json > "${POD_OUTPUT_DIR}/${SUPER_OWNER_KIND}_${SUPER_OWNER_NAME}.json"
-    kubectl describe $SUPER_OWNER_KIND $SUPER_OWNER_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/${SUPER_OWNER_KIND}_${SUPER_OWNER_NAME}.txt"
-  fi
+  POD_OWNER_KIND='pod'
+  POD_OWNER_NAME=${POD_NAME}
+  while [ $(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences}') ] ; do
+    KIND1=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')
+    POD_OWNER_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${KIND1}\"")].name}")
+    POD_OWNER_KIND=${KIND1}
+    kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.json"
+    kubectl describe $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.txt"
+  done
 
   # Get Service Account details
   POD_SA_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.spec.template.spec.serviceAccountName}')
@@ -141,11 +140,17 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
 
   # Iterate over labels to find the service because their no direct reference to service and deployment
   for label in ${LABEL_LIST[*]}; do
-    kubectl get svc -n $NAMESPACE -l $label -ojson >> "${POD_OUTPUT_DIR}/Services.json"
-    kubectl describe svc -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
-  done
+    if [[ $(kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items[*]}') ]] ; then
+      kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items[*]}' >> "${POD_OUTPUT_DIR}/Services.json"
+      kubectl describe svc -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
+    fi
 
-  # TODO: Can we get Ingress resources as well?
+  # Get Ingress resources using labels
+    if [[ $(kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items[*]}') ]] ; then
+      kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items[*]}' >> "${POD_OUTPUT_DIR}/Services.json"
+      kubectl describe ingress -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
+    fi
+  done
 
   # Get PVC/PV for the pod
   VOLUMES_CLAIMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{range .spec.volumes[*]}{.persistentVolumeClaim.claimName}{"\n"}{end}') # Get PVC Names
@@ -165,7 +170,21 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
       echo "ConfigMap ${cm} is missing"
     fi
   done
-  
+
+  # Collect Webhooks 
+  kubectl get mutatingwebhookconfiguration -oyaml > mutating_webhooks.yaml
+  kubectl get validatingwebhookconfiguration -oyaml > mutating_webhooks.yaml
+
+  print "\n******** NOTE ********\n""Please Enter "yes" Or "y" if you want to collect the logs of Pod \"${POD_NAME}\"\n""**********************"
+  read COLLECT_LOGS 
+  print "**********************\n""Collecting logs of Pod\n"
+  COLLECT_LOGS=$(echo "$COLLECT_LOGS" | tr '[:upper:]' '[:lower:]')
+
+  if [ "$COLLECT_LOGS" = "yes" ] || [ "$COLLECT_LOGS" = "y" ] ; then
+    kubectl logs $POD_NAME -n $NAMESPACE --timestamps > "${POD_OUTPUT_DIR}/${POD_NAME}.log"
+  fi
+
 fi
 
+print "###\nDone Collecting Information\n###"
 
