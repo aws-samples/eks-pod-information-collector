@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 #Helper Functions
 
 function print() {
@@ -60,7 +61,7 @@ validate_pod_ns $POD_NAME $NAMESPACE
 CLUSTER_INFO=$(kubectl config view --minify -ojsonpath='{.clusters[0]}')
 CLUSTERNAME=$(echo $CLUSTER_INFO | sed 's/^[^=]*:cluster\///' | sed 's/..$//')
 ROOT_OUTPUT_DIR=$PWD
-TIME=$(date "+%Y%m%d-%Hh:%Mm:%Ss")
+TIME=$(date -u +%Y-%m-%d_%H%M-%Z)
 OUTPUT_DIR_NAME=$(sed 's|r/|r-|g' <<< "${CLUSTERNAME}")_$TIME  
 mkdir "$OUTPUT_DIR_NAME"
 OUTPUT_DIR="$PWD/${OUTPUT_DIR_NAME}"
@@ -70,8 +71,9 @@ CLUSTER_INFO_FILE="${OUTPUT_DIR}/Cluster_Info.json"
 CONFIG="${OUTPUT_DIR}/ConfigMaps.yaml"
 DAEMONSET="${OUTPUT_DIR}/DaemonSets.yaml"
 DEPLOYMENT="${OUTPUT_DIR}/Deployments.yaml"
-MUTATING_WEBHOOKS="${OUTPUT_DIR}/MutatingWebhook.yaml"
-VALIDATING_WEBHOOKS="${OUTPUT_DIR}/ValidatingWebhook.yaml"
+MUTATING_WEBHOOKS="${OUTPUT_DIR}/MutatingWebhook.json"
+VALIDATING_WEBHOOKS="${OUTPUT_DIR}/ValidatingWebhook.json"
+STORAGE_CLASSES="${OUTPUT_DIR}/Storage_Classes.json"
 
 # Collecting Cluster Details
 print "Collecting information in Directory: ${OUTPUT_DIR}"
@@ -141,16 +143,37 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   # Iterate over labels to find the service because their no direct reference to service and deployment
   for label in ${LABEL_LIST[*]}; do
     if [[ $(kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items[*]}') ]] ; then
-      kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items[*]}' >> "${POD_OUTPUT_DIR}/Services.json"
+      kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items}' >> "${POD_OUTPUT_DIR}/Services.json"
       kubectl describe svc -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
+      SVC=$(kubectl get svc -n $NAMESPACE -l $label --no-headers | head -1 | awk '{print $1}')
+      ANN=$(kubectl get svc $INGRESS -n $NAMESPACE -ojsonpath='{.metadata.annotations.service\.kubernetes\.io/aws-load-balancer-type\}')
+      SPEC=$(kubectl get svc $INGRESS -n $NAMESPACE -ojsonpath='{.spec.loadBalancerClass}')
+      [[ ! $ANN ]] && INGRESS_CLASS=$SPEC || INGRESS_CLASS=$ANN
+
+      if [[ ${INGRESS_CLASS} == 'external' || ${INGRESS_CLASS} == 'service.k8s.aws/nlb' ]] ; then
+        COLLECT_LBC_LOGS='YES'
+      fi
     fi
 
   # Get Ingress resources using labels
     if [[ $(kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items[*]}') ]] ; then
-      kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items[*]}' >> "${POD_OUTPUT_DIR}/Services.json"
+      kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items}' >> "${POD_OUTPUT_DIR}/Ingress.json"
       kubectl describe ingress -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
+      INGRESS=$(kubectl get ingress -n $NAMESPACE -l $label --no-headers | head -1 | awk '{print $1}')
+      ANN=$(kubectl get ingress $INGRESS -n $NAMESPACE -ojsonpath='{.metadata.annotations.kubernetes\.io/ingress\.class}')
+      SPEC=$(kubectl get ingress $INGRESS -n $NAMESPACE -ojsonpath='{.spec.ingressClassName}')
+      [[ ! $ANN ]] && INGRESS_CLASS=$SPEC || INGRESS_CLASS=$ANN
+
+      if [[ ${INGRESS_CLASS} == 'alb' ]] ; then
+        COLLECT_LBC_LOGS='YES'
+      fi
     fi
   done
+
+  if [[ ${COLLECT_LBC_LOGS} == 'YES' ]] ; then
+    kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --tail=-1 > "${POD_OUTPUT_DIR}/aws_lbc.log"
+    kubectl get deployment -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/aws_lbc.json"
+  fi
 
   # Get PVC/PV for the pod
   VOLUMES_CLAIMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{range .spec.volumes[*]}{.persistentVolumeClaim.claimName}{"\n"}{end}') # Get PVC Names
@@ -159,11 +182,38 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
     kubectl describe pvc $claim -n $NAMESPACE > "${POD_OUTPUT_DIR}/PVC_${claim}.json"
     PV=$(kubectl get pvc $claim -n $NAMESPACE -o jsonpath={'.spec.volumeName'})
     kubectl get pv $PV -o json > "${POD_OUTPUT_DIR}/PV_${PV}.json"  #Get Associated PV JSON
-    kubectl describe pv $PV > "${POD_OUTPUT_DIR}/PV_${PV}.txt"
+    kubectl describe pv $PV > "${POD_OUTPUT_DIR}/PV_${PV}.txt" 
+    CSI=$(kubectl get pv $PV -ojsonpath='{.spec.csi.driver}')
+
+    if [[ ${CSI} == 'ebs.csi.aws.com' ]] ; then
+      COLLECT_EBS_CSI_LOGS='YES'
+    fi
+
+    if [[ ${CSI} == 'efs.csi.aws.com' ]] ; then
+      COLLECT_EFS_CSI_LOGS='YES'
+    fi
   done
+
+  if [[ ${COLLECT_EBS_CSI_LOGS} == 'YES' ]] ; then
+    EBS_CSI_NODE_POD=$(kubectl get pods -n kube-system --field-selector spec.nodeName=${NODE} -l app=ebs-csi-node --no-headers | awk '{print $1}')
+    kubectl logs $EBS_CSI_NODE_POD -n kube-system > "${POD_OUTPUT_DIR}/${EBS_CSI_NODE_POD}.log"
+    kubectl logs -n kube-system -l app=ebs-csi-controller --tail=-1 > "${POD_OUTPUT_DIR}/ebs-csi-controller.log"
+    kubectl get deployment -n kube-system -l app=ebs-csi-controller -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/ebs-csi-controller.json"
+  fi
+
+  if [[ ${COLLECT_EFS_CSI_LOGS} == 'YES' ]] ; then
+    EFS_CSI_NODE_POD=$(kubectl get pods -n kube-system --field-selector spec.nodeName=${NODE} -l app=efs-csi-node --no-headers | awk '{print $1}')
+    kubectl logs $EFS_CSI_NODE_POD -n kube-system > "${POD_OUTPUT_DIR}/${EFS_CSI_NODE_POD}.log"
+    kubectl logs -n kube-system -l app=efs-csi-controller --tail=-1 > "${POD_OUTPUT_DIR}/efs-csi-controller.log"
+    kubectl get deployment -n kube-system -l app=efs-csi-controller -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/efs-csi-controller.json"
+  fi 
+
+  # Collect StorageClasses
+  kubectl get sc -ojsonpath='{.items}' > $STORAGE_CLASSES 
 
   # Get Mounted ConfigMaps for the pod
   # TODO: Should we get/read the configMap as well?
+
   CMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{range .spec.volumes[*]}{.configMap.name}{"\n"}{end}')
   for cm in ${CMS[*]}; do
     if [[ ! $(kubectl get cm $cm -n $NAMESPACE) ]] ; then  #Get Associated ConfigMap JSON
@@ -171,10 +221,11 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
     fi
   done
 
-  # Collect Webhooks 
-  kubectl get mutatingwebhookconfiguration -oyaml > mutating_webhooks.yaml
-  kubectl get validatingwebhookconfiguration -oyaml > mutating_webhooks.yaml
+  # Collect Webhooks
+  kubectl get mutatingwebhookconfiguration -ojsonpath='{.items}' > $MUTATING_WEBHOOKS
+  kubectl get validatingwebhookconfiguration -ojsonpath='{.items}' > $VALIDATING_WEBHOOKS
 
+  # Optional log collection
   print "\n******** NOTE ********\n""Please Enter "yes" Or "y" if you want to collect the logs of Pod \"${POD_NAME}\"\n""**********************"
   read COLLECT_LOGS 
   print "**********************\n""Collecting logs of Pod\n"
@@ -187,4 +238,6 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
 fi
 
 print "###\nDone Collecting Information\n###"
-
+print "#### Bundling the file ####"
+tar -czf "${PWD}/${OUTPUT_DIR_NAME}.tar.gz" "./${OUTPUT_DIR_NAME}" 
+print "\n\tDone... your bundled logs are located in ${PWD}/${OUTPUT_DIR_NAME}.tar.gz\n"
