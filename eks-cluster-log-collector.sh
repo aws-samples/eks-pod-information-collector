@@ -134,7 +134,7 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   done
 
   # Get Service Account details
-  POD_SA_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.spec.template.spec.serviceAccountName}')
+  POD_SA_NAME=$(kubectl get po $POD_NAME -n $NAMESPACE -ojsonpath='{.spec.serviceAccountName}')
   kubectl get serviceaccount $POD_SA_NAME -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/SA_${POD_SA_NAME}.json"
 
   # Get Service Details 
@@ -146,12 +146,13 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
       kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items}' >> "${POD_OUTPUT_DIR}/Services.json"
       kubectl describe svc -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
       SVC=$(kubectl get svc -n $NAMESPACE -l $label --no-headers | head -1 | awk '{print $1}')
-      ANN=$(kubectl get svc $INGRESS -n $NAMESPACE -ojsonpath='{.metadata.annotations.service\.kubernetes\.io/aws-load-balancer-type\}')
-      SPEC=$(kubectl get svc $INGRESS -n $NAMESPACE -ojsonpath='{.spec.loadBalancerClass}')
+      ANN=$(kubectl get svc $SVC -n $NAMESPACE -ojsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/aws-load-balancer-type}')
+      SPEC=$(kubectl get svc $SVC -n $NAMESPACE -ojsonpath='{.spec.loadBalancerClass}')
       [[ ! $ANN ]] && INGRESS_CLASS=$SPEC || INGRESS_CLASS=$ANN
 
       if [[ ${INGRESS_CLASS} == 'external' || ${INGRESS_CLASS} == 'service.k8s.aws/nlb' ]] ; then
         COLLECT_LBC_LOGS='YES'
+        echo "Setting COllect LBC YES in SVC"
       fi
     fi
 
@@ -179,7 +180,7 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   VOLUMES_CLAIMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{range .spec.volumes[*]}{.persistentVolumeClaim.claimName}{"\n"}{end}') # Get PVC Names
   for claim in ${VOLUMES_CLAIMS[*]}; do
     kubectl get pvc $claim -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/PVC_${claim}.json"
-    kubectl describe pvc $claim -n $NAMESPACE > "${POD_OUTPUT_DIR}/PVC_${claim}.json"
+    kubectl describe pvc $claim -n $NAMESPACE > "${POD_OUTPUT_DIR}/PVC_${claim}.txt"
     PV=$(kubectl get pvc $claim -n $NAMESPACE -o jsonpath={'.spec.volumeName'})
     kubectl get pv $PV -o json > "${POD_OUTPUT_DIR}/PV_${PV}.json"  #Get Associated PV JSON
     kubectl describe pv $PV > "${POD_OUTPUT_DIR}/PV_${PV}.txt" 
@@ -195,17 +196,30 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   done
 
   if [[ ${COLLECT_EBS_CSI_LOGS} == 'YES' ]] ; then
+    kubectl get deployment -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/ebs-csi-controller.json"
     EBS_CSI_NODE_POD=$(kubectl get pods -n kube-system --field-selector spec.nodeName=${NODE} -l app=ebs-csi-node --no-headers | awk '{print $1}')
-    kubectl logs $EBS_CSI_NODE_POD -n kube-system > "${POD_OUTPUT_DIR}/${EBS_CSI_NODE_POD}.log"
-    kubectl logs -n kube-system -l app=ebs-csi-controller --tail=-1 > "${POD_OUTPUT_DIR}/ebs-csi-controller.log"
-    kubectl get deployment -n kube-system -l app=ebs-csi-controller -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/ebs-csi-controller.json"
+    NODE_CONTAINERS=$(kubectl get daemonset -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver -ojsonpath='{.items[0].spec.template.spec.containers[*].name}')
+    DRIVER_CONTAINERS=$(kubectl get deployment -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver -ojsonpath='{.items[0].spec.template.spec.containers[*].name}')
+    for container in ${NODE_CONTAINERS}; do
+      kubectl logs $EBS_CSI_NODE_POD -n kube-system -c $container --tail=-1 > "${POD_OUTPUT_DIR}/ebs-node-${container}.log"
+    done
+    for container in ${DRIVER_CONTAINERS}; do
+      kubectl logs -n kube-system -l app=ebs-csi-controller -c $container --tail=-1 > "${POD_OUTPUT_DIR}/ebs-csi-${container}.log"
+    done
+    
   fi
 
   if [[ ${COLLECT_EFS_CSI_LOGS} == 'YES' ]] ; then
+    kubectl get deployment -n kube-system -l app.kubernetes.io/name=aws-efs-csi-driver -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/efs-csi-controller.json"
     EFS_CSI_NODE_POD=$(kubectl get pods -n kube-system --field-selector spec.nodeName=${NODE} -l app=efs-csi-node --no-headers | awk '{print $1}')
-    kubectl logs $EFS_CSI_NODE_POD -n kube-system > "${POD_OUTPUT_DIR}/${EFS_CSI_NODE_POD}.log"
-    kubectl logs -n kube-system -l app=efs-csi-controller --tail=-1 > "${POD_OUTPUT_DIR}/efs-csi-controller.log"
-    kubectl get deployment -n kube-system -l app=efs-csi-controller -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/efs-csi-controller.json"
+    NODE_CONTAINERS=$(kubectl get daemonset -n kube-system -l app.kubernetes.io/name=aws-efs-csi-driver -ojsonpath='{.items[0].spec.template.spec.containers[*].name}')
+    DRIVER_CONTAINERS=$(kubectl get deployment -n kube-system -l app.kubernetes.io/name=aws-efs-csi-driver -ojsonpath='{.items[0].spec.template.spec.containers[*].name}')
+    for container in ${NODE_CONTAINERS}; do
+      kubectl logs $EFS_CSI_NODE_POD -n kube-system -c $container --tail=-1 > "${POD_OUTPUT_DIR}/efs-node-${container}.log"
+    done
+    for container in ${DRIVER_CONTAINERS}; do
+      kubectl logs -n kube-system -l app=efs-csi-controller -c $container --tail=-1 > "${POD_OUTPUT_DIR}/efs-csi-${container}.log"
+    done
   fi 
 
   # Collect StorageClasses
@@ -231,7 +245,7 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   print "**********************\n""Collecting logs of Pod\n"
   COLLECT_LOGS=$(echo "$COLLECT_LOGS" | tr '[:upper:]' '[:lower:]')
 
-  if [ "$COLLECT_LOGS" = "yes" ] || [ "$COLLECT_LOGS" = "y" ] ; then
+  if [[ ${COLLECT_LOGS} == 'yes'  || ${COLLECT_LOGS} = 'y' ]] ; then
     kubectl logs $POD_NAME -n $NAMESPACE --timestamps > "${POD_OUTPUT_DIR}/${POD_NAME}.log"
   fi
 
