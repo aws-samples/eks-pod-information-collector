@@ -42,7 +42,6 @@ KUBE_SYSTEM_CM=(
   aws-auth
   coredns
   kube-proxy
-  amazon-vpc-cni
 )
 
 # Names of Default Daemonsets and Deployment
