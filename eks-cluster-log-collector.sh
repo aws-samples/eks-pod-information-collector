@@ -144,14 +144,12 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
     if [[ $(kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items[*]}') ]] ; then
       kubectl get svc -n $NAMESPACE -l $label -ojsonpath='{.items}' >> "${POD_OUTPUT_DIR}/Services.json"
       kubectl describe svc -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
-      SVC=$(kubectl get svc -n $NAMESPACE -l $label --no-headers | head -1 | awk '{print $1}')
-      ANN=$(kubectl get svc $SVC -n $NAMESPACE -ojsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/aws-load-balancer-type}')
-      SPEC=$(kubectl get svc $SVC -n $NAMESPACE -ojsonpath='{.spec.loadBalancerClass}')
+      ANN=$(kubectl get svc  -l $label  -n $NAMESPACE -ojsonpath='{.items[*].metadata.annotations.service\.beta\.kubernetes\.io/aws-load-balancer-type}')
+      SPEC=$(kubectl get svc  -l $label -n $NAMESPACE -ojsonpath='{.items[*].spec.loadBalancerClass}')
       [[ ! $ANN ]] && INGRESS_CLASS=$SPEC || INGRESS_CLASS=$ANN
 
       if [[ ${INGRESS_CLASS} == 'external' || ${INGRESS_CLASS} == 'service.k8s.aws/nlb' ]] ; then
         COLLECT_LBC_LOGS='YES'
-        echo "Setting COllect LBC YES in SVC"
       fi
     fi
 
@@ -159,9 +157,8 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
     if [[ $(kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items[*]}') ]] ; then
       kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items}' >> "${POD_OUTPUT_DIR}/Ingress.json"
       kubectl describe ingress -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
-      INGRESS=$(kubectl get ingress -n $NAMESPACE -l $label --no-headers | head -1 | awk '{print $1}')
-      ANN=$(kubectl get ingress $INGRESS -n $NAMESPACE -ojsonpath='{.metadata.annotations.kubernetes\.io/ingress\.class}')
-      SPEC=$(kubectl get ingress $INGRESS -n $NAMESPACE -ojsonpath='{.spec.ingressClassName}')
+      ANN=$(kubectl get ingress -l $label -n $NAMESPACE -ojsonpath='{.items[*].metadata.annotations.kubernetes\.io/ingress\.class}')
+      SPEC=$(kubectl get ingress -l $label -n $NAMESPACE -ojsonpath='{.items[*].spec.ingressClassName}')
       [[ ! $ANN ]] && INGRESS_CLASS=$SPEC || INGRESS_CLASS=$ANN
 
       if [[ ${INGRESS_CLASS} == 'alb' ]] ; then
