@@ -69,7 +69,7 @@ The `aws-eks-cluster-log-collector-script` will create a main folder under your 
 
 #### Use-case Scenarios
 
-This script can be executed from your machine against any AWS EKS cluster and below I have included few execution use-cases for the reference (**Note: User who is running this script must have appropriate Admin permission to access EKS cluster and should configure AWS_Profile with appropriate assume_role prior to running the script**).
+This script can be executed from your machine against any AWS EKS cluster and below I have included few execution use-cases for the reference (**Note: User who is running this script must have an appropriate Admin permission to access EKS cluster and should configure AWS_Profile with appropriate assume_role prior to running the script**).
 
 ```
 SCENARIO 1: When you do not include POD_NAME & NAMESPACE
