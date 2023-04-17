@@ -1,12 +1,12 @@
 ### EKS Cluster Log Collector Script
 
-This project was created to collect Amazon EKS cluster level logs which includes collecting a specific POD Configuration/logs , Cluster setup level configuration such as ConfigMap and Kubernetes resources such as PV,PVC,WebHook, SA for troubleshooting Amazon EKS customer support cases.
+This project was created to collect Amazon EKS cluster level logs which includes collecting a specific POD Configurations/Spec/logs , Cluster level setup  configurations such as ConfigMap and Kubernetes resources such as PV,PVC,WebHook, SA for troubleshooting Amazon EKS customer support cases.
 
 #### Usage
 
-At a high level, you run this script from your machine's terminal against your desired EKS cluster and it will collect below included information at a specific directoy location in a Tarball format that will help AWS support and service team engineers in assisting AWS Customers with their EKS cluster related issues. AWS support and service team engineers can use this collected information once provided via a customer support case to investigate/troubleshoot the issue effectively and efficiently.
+At a high level, you run this script from your machine's terminal against your desired EKS cluster and it will collect below included information and create a Tarball sharable folder in a user's current directoy location. This collected logs will help AWS support and service team engineers in assisting AWS Customers with their EKS cluster related issues. AWS support and service team engineers can use this collected information once provided via a customer support case to investigate/troubleshoot the issue effectively and efficiently.
 
-NOTE: User must have a Admin permission to view/access all the resources in their respective EKS cluster before they run the script.
+```NOTE: User must have a Admin permission to view/access all the resources in their respective EKS cluster before they run this script.```
 
 * Run this project as the root user and `POD_NAME & NAMESPACE` are mandatory input parameter 
 
