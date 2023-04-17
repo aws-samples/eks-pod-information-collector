@@ -30,7 +30,7 @@ You can run this script prior to creating a EKS support case with AWS and attach
 
 The `aws-eks-cluster-log-collector-script` will create a main folder under your current directory with your EKS cluster name and time stamp(<EKS-Cluster-Name>_<CurrentTime-stamp-UTC>.tar.gz) which will include below listed files with a proper naming convention to segregate captured EKS cluster information and kubernetes resource configuration and logs. 
 
-NOTE: K = Kubectl 
+```NOTE: K = Kubectl``` 
  - Script will create following list of files within the main folder.
 
   1. `Cluster_Info.json` --> It will include current-context EKS Cluster information such as Cluster ARN and control plan server Url.
@@ -41,7 +41,7 @@ NOTE: K = Kubectl
   
   4. `Deployments.yaml` --> It will include CoreDNS Deployments information.
   
-  5. `MutatingWebhook.json` --> It will include currently configured MutatingWebhook information.`K get mutatingwebhookconfiguration`
+  5. `MutatingWebhook.json` --> It will include currently configured MutatingWebhook information. Output of:`K get mutatingwebhookconfiguration`
   
   6. `ValidatingWebhook.json` --> It will include currently configured ValidatingWebhook information. Output of: `K get validatingwebhookconfiguration`
   
