@@ -8,8 +8,6 @@ At a high level, you run this script from your machine's terminal against your d
 
 NOTE: User must have a Admin permission to view/access all the resources in their respective EKS cluster before they run the script.
 
-* Collect EKS logs using SSM agent, jump to below [section](#collect-eks-logs-using-ssm-agent) _(or)_
-
 * Run this project as the root user and `POD_NAME & NAMESPACE` are mandatory input parameter 
 
 ```
