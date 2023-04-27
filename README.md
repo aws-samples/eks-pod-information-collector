@@ -1,4 +1,4 @@
-### EKS Cluster Log Collector Script
+### EKS Pod Information Collector Script
 
 This project was created to collect Amazon EKS cluster level logs which includes collecting a specific POD Configurations/Spec/logs , Cluster level setup  configurations such as ConfigMap and Kubernetes resources such as PV,PVC,WebHook, SA for troubleshooting Amazon EKS customer support cases.
 
