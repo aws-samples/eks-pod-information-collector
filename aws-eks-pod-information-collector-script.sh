@@ -20,6 +20,21 @@ function warn() {
   echo -e "\n\t[WARNING] $* \n"
 }
 
+help() {
+  echo ""
+  echo "USAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags "
+  echo ""
+  echo "MANDATORY FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER"
+  echo ""
+  echo "   -p  Pass this flag to provide the EKS pod name"
+  echo ""
+  echo "   -n  Pass this flag to provide the Namespace in which above specified pod is running"
+  echo ""
+  echo "OPTIONAL:"
+  echo "   -h Or -help to Show this help message."
+  echo ""
+}
+
 #TODO: Can this be optimized?
 # Function to validate the inputs
 function validate_pod_ns(){
@@ -54,6 +69,26 @@ KUBE_SYSTEM_DS_DEP=(
 # Parse & Validate Arguments
 POD_NAME=${1:-''} 
 NAMESPACE=${2:-''}
+
+while getopts ':p:n:h' OPTION; do
+  case "$OPTION" in
+    p)
+      POD_NAME="$2"
+      ;;
+    n)
+      NAMESPACE="$4"
+      ;;
+    help|h)
+      help && exit 0
+      ;;
+    ?)
+      help && exit 1
+      ;;
+  esac
+done
+ 
+echo "Pod name=$POD_NAME "
+echo "Namespce=$NAMESPACE "
 validate_pod_ns $POD_NAME $NAMESPACE
 
 # Creating Output Directory
