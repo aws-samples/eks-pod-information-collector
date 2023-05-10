@@ -271,13 +271,15 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   kubectl get validatingwebhookconfiguration -ojsonpath='{.items}' > $VALIDATING_WEBHOOKS
 
   # Optional log collection
-  print "\n******** NOTE ********\n""Please Enter "yes" Or "y" if you want to collect the logs of Pod \"${POD_NAME}\"\n""**********************"
-  read COLLECT_LOGS 
-  print "**********************\n""Collecting logs of Pod\n"
+  print "\n******** NOTE ********\n""Please type "yes" Or "y" and press ENTER if you want to collect the logs of Pod , To Skip just press ENTER\"${POD_NAME}\"\n""**********************"
+  read -rep $'Do you want to collect the Pod logs ?\n>' COLLECT_LOGS
   COLLECT_LOGS=$(echo "$COLLECT_LOGS" | tr '[:upper:]' '[:lower:]')
 
   if [[ ${COLLECT_LOGS} == 'yes'  || ${COLLECT_LOGS} = 'y' ]] ; then
+    print "**********************\n""Collecting logs of Pod\n"
     kubectl logs $POD_NAME -n $NAMESPACE --timestamps > "${POD_OUTPUT_DIR}/${POD_NAME}.log"
+  else 
+   print "**********************\n"" Skipping the Pod logs collection \n"
   fi
 
 fi
