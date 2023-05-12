@@ -8,7 +8,7 @@ At a high level, you run this script from your machine's terminal against your d
 
 ```NOTE: User must have an Admin permission to view/access all the resources in their respective EKS cluster before they run this script.```
 
-* Run this project as the root user and `POD_NAME & NAMESPACE` are mandatory input parameter 
+* Run this project as the EKS cluster root user and `Podname (-p) & Namespace (-n)` are mandatory input parameter.
 
 ```
 curl -O https://github.com/aws-samples/aws-eks-cluster-log-collector-script.git
@@ -17,7 +17,7 @@ OR
 ./eks-cluster-log-collector.sh <Provide Complete POD name> <Provide Complete Namespace Name In which that POD is running>
 ```
 
-NOTE: If you do not pass the required arguments `POD_NAME & NAMESPACE` , By default script will collect Default resources running in `KUBE-SYSTEM namespace`.
+NOTE: If you do not pass the required arguments `Podname (-p) & Namespace (-n)` , By default script will collect Default resources running in `KUBE-SYSTEM namespace`.
 
 Confirm if the tarball file was successfully created (it can be .tgz or .tar.gz) in your current Directory. `EX: /~/Desktop/<EKS-Cluster-Name>_<CurrentTime-stamp-UTC>.tar.gz`
 #### Share the logs Over EKS Support Case
@@ -91,7 +91,7 @@ Folder Structure:
 
 #### Use-case Scenarios
 
-This script can be executed from your machine against any AWS EKS cluster and below I have included few execution use-cases for the reference (**Note: User who is running this script must have an appropriate Admin permission to access EKS cluster and should configure AWS_Profile with appropriate assume_role prior to running the script**).
+This script can be executed from your machine against any AWS EKS cluster and below included test execution use-cases will help you understand the script execution workflow (**Note: User who is running this script must have an appropriate Admin permission to access EKS cluster and should configure AWS_Profile with appropriate assume_role prior to running the script**).
 
 #### Examples
 
@@ -162,7 +162,7 @@ $ sudo ./aws-eks-pod-information-collector-script.sh example-test-pod-123xxxx  t
 
 RESULT:
 
-Collecting information in Directory: /~/Desktop/<EKS-Cluster-Name>_2023-04-17_2314-UTC
+Collecting information in Directory: /<User current directoy name>/<EKS-Cluster-Name>_2023-04-17_2314-UTC
 Collecting Cluster Details, Review File: Cluster_Info.json
 Collecting Default resources in KUBE-SYSTEM, Review Files ConfigMaps.yaml, DaemonSets.yaml, Deployments.yaml
 Collecting Resource related to example-test-pod-123xxxx, Review Files in Directory: example-test-pod-123xxxx
