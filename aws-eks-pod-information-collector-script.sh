@@ -20,6 +20,21 @@ function warn() {
   echo -e "\n\t[WARNING] $* \n"
 }
 
+help() {
+  echo ""
+  echo "USAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags "
+  echo ""
+  echo "MANDATORY FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER"
+  echo ""
+  echo "   -p  Pass this flag to provide the EKS pod name"
+  echo ""
+  echo "   -n  Pass this flag to provide the Namespace in which above specified pod is running"
+  echo ""
+  echo "OPTIONAL:"
+  echo "   -h  To Show this help message."
+  echo ""
+}
+
 #TODO: Can this be optimized?
 # Function to validate the inputs
 function validate_pod_ns(){
@@ -54,6 +69,26 @@ KUBE_SYSTEM_DS_DEP=(
 # Parse & Validate Arguments
 POD_NAME=${1:-''} 
 NAMESPACE=${2:-''}
+
+while getopts ':p:n:h' OPTION; do
+  case "$OPTION" in
+    p)
+      POD_NAME="$2"
+      ;;
+    n)
+      NAMESPACE="$4"
+      ;;
+    help|h)
+      help && exit 0
+      ;;
+    ?)
+      help && exit 1
+      ;;
+  esac
+done
+ 
+echo "Podname= $POD_NAME"
+echo "Namespace= $NAMESPACE"
 validate_pod_ns $POD_NAME $NAMESPACE
 
 # Creating Output Directory
@@ -236,13 +271,15 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then
   kubectl get validatingwebhookconfiguration -ojsonpath='{.items}' > $VALIDATING_WEBHOOKS
 
   # Optional log collection
-  print "\n******** NOTE ********\n""Please Enter "yes" Or "y" if you want to collect the logs of Pod \"${POD_NAME}\"\n""**********************"
-  read COLLECT_LOGS 
-  print "**********************\n""Collecting logs of Pod\n"
+  print "\n******** NOTE ********\n""Please type "yes" Or "y" and press ENTER if you want to collect the logs of Pod , To Skip just press ENTER\"${POD_NAME}\"\n""**********************"
+  read -rep $'Do you want to collect the Pod logs ?\n>' COLLECT_LOGS
   COLLECT_LOGS=$(echo "$COLLECT_LOGS" | tr '[:upper:]' '[:lower:]')
 
   if [[ ${COLLECT_LOGS} == 'yes'  || ${COLLECT_LOGS} = 'y' ]] ; then
+    print "**********************\n""Collecting logs of Pod\n"
     kubectl logs $POD_NAME -n $NAMESPACE --timestamps > "${POD_OUTPUT_DIR}/${POD_NAME}.log"
+  else 
+   print "**********************\n"" Skipping the Pod logs collection \n"
   fi
 
 fi
