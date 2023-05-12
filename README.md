@@ -93,10 +93,27 @@ Folder Structure:
 
 This script can be executed from your machine against any AWS EKS cluster and below I have included few execution use-cases for the reference (**Note: User who is running this script must have an appropriate Admin permission to access EKS cluster and should configure AWS_Profile with appropriate assume_role prior to running the script**).
 
-```
-SCENARIO 1: When you do not include POD_NAME & NAMESPACE
+#### Examples
 
-$ sudo ./eks-cluster-log-collector.sh
+```
+$ sudo bash ./aws-eks-pod-information-collector-script.sh --help
+
+USAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags
+
+MANDATORY FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER
+
+   -p  Pass this flag to provide the EKS pod name
+
+   -n  Pass this flag to provide the Namespace in which above specified pod is running
+
+OPTIONAL:
+   -h Or -help to Show this help message.
+```
+
+```
+SCENARIO 1: When you do not provide `Podname` & `Namespace` to the script
+
+$ sudo ./aws-eks-pod-information-collector-script.sh
 
 RESULT:
 
@@ -116,13 +133,32 @@ Done Collecting Information
 	Done... your bundled logs are located in /~/Desktop/<EKS-Cluster-Name>_2023-04-17_2314-UTC.tar.gz
 
 ```
+
 ```
-SCENARIO 2: When you include POD_NAME & NAMESPACE
+SCENARIO 2: When you Only  provide one of the argument `Podname` & `Namespace` to the script
+
+$ sudo ./aws-eks-pod-information-collector-script.sh -p test -n                                        ✔
+
+USAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags
+
+MANDATORY FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER
+
+   -p  Pass this flag to provide the EKS pod name
+
+   -n  Pass this flag to provide the Namespace in which above specified pod is running
+
+OPTIONAL:
+   -h Or -help to Show this help message.
+
+```
+
+```
+SCENARIO 3: When you provide both `Podname` & `Namespace` to the script
 
 $ sudo ./eks-cluster-log-collector.sh <Provide Complete POD name> <Provide Complete Namespace Name In which that POD is running>
 
 EX:
-$ sudo ./eks-cluster-log-collector.sh example-test-pod-123xxxx  test
+$ sudo ./aws-eks-pod-information-collector-script.sh example-test-pod-123xxxx  test
 
 RESULT:
 
