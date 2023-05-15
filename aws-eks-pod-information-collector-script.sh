@@ -35,18 +35,12 @@ function warn() {
 }
 
 function help() {
-  echo ""
-  echo "USAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags "
-  echo ""
-  echo "Required FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER"
-  echo ""
-  echo "   -p  Pass this flag to provide the EKS pod name"
-  echo ""
-  echo "   -n  Pass this flag to provide the Namespace in which above specified pod is running"
-  echo ""
-  echo "OPTIONAL:"
-  echo "   -h  To Show this help message."
-  echo ""
+  print "\nUSAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags"
+  print "\nRequired FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER"
+  print "\n\t-p  Pass this flag to provide the EKS pod name"
+  print "\t-n  Pass this flag to provide the Namespace in which above specified pod is running"
+  print "\nOPTIONAL:"
+  print "\t-h  To Show this help message."
 }
 
 # Main functions
