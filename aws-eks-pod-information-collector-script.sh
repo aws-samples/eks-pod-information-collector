@@ -37,8 +37,8 @@ function warn() {
 function help() {
   print "\nUSAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags"
   print "\nRequired FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER"
-  print "\n\t-p  Pass this flag to provide the EKS pod name"
-  print "\t-n  Pass this flag to provide the Namespace in which above specified pod is running"
+  print "\n\t-p OR --pod \tPass this flag to provide the EKS pod name"
+  print "\t-n OR --namespace\tPass this flag to provide the Namespace in which above specified pod is running"
   print "\nOPTIONAL:"
   print "\t-h  To Show this help message."
 }
@@ -78,9 +78,9 @@ function check_kubectl () {
 
 # Function to validate the inputs
 function validate_pod_ns(){
-  if [[ -z $1 ]] && [[ -z $2 ]]; then
-    warn "POD_NAME & NAMESPACE Both are required!!"
-    warn "Collecting Default resources in KUBE-SYSTEM namespace!!" 
+  if [[ -z $1 ]] || [[ -z $2 ]]; then
+    help
+    error "POD_NAME & NAMESPACE Both are required!!"
   else 
     if [[ ! $(kubectl get ns $2 2> /dev/null) ]] ; then
       error "Namespace ${2} not found!!"
@@ -193,26 +193,38 @@ function get_pod_svc_ingress() {
 
 }
 
-# Parse Arguments
-POD_NAME=${1:-''} 
-NAMESPACE=${2:-''}
 
-while getopts ':p:n:h' OPTION; do
-  case "$OPTION" in
-    p)
-      POD_NAME="$OPTARG"
+
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    -h | --help)
+       help && exit 0
       ;;
-    n)
-      NAMESPACE="$OPTARG"
+    -p | --pod)
+      POD_NAME=$2
+      #echo $POD_NAME
+      shift
+      shift
       ;;
-    help|h)
-      help && exit 0
+    -n | --namespace)
+      NAMESPACE=$2
+      #echo $NAMESPACE
+      shift
+      shift
       ;;
-    ?)
-      help && exit 1
+    * )
+     help && exit 1
+      shift
+      shift
       ;;
   esac
 done
+
+echo $POD_NAME 
+echo $NAMESPACE
+ 
+
 
 function get_pod_volumes() {
   # Get PVC/PV for the pod
@@ -288,7 +300,10 @@ function get_pod_logs() {
 
 function finalize() {
   print "### Done Collecting Information ###"
-  print "*** Remove any confedential/sensitive information (e.g. Logs, Passwords, API Tokens etc) and Bundle the logs using below Command ***"
+
+  print "+---------------- ATTENTION ------------------------------------------------------------------+" 
+  warn "*** Please Remove Any Confidential/Sensitive Information (e.g. Logs, Passwords, API Tokens etc) and Bundle the logs using below Command ***"
+  print "+------------------ END ----------------------------------------------------------------------+" 
   print "\t tar -czf "${PWD}/${OUTPUT_DIR_NAME}.tar.gz" "./${OUTPUT_DIR_NAME}" " 
 }
 
@@ -305,5 +320,3 @@ if [[ ${VALID_INPUTS} == 'VALID' ]] ; then # Collect resources for User Desired 
   get_pod_logs
   finalize
 fi
-
-
