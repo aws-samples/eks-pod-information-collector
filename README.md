@@ -1,4 +1,4 @@
-###  EKS Pod Information Collector (EPIC) Script
+###  EKS Pod Information Collector (EPIC)  
 
 This project was created to collect Amazon EKS resource information which includes collecting a specific POD Configurations/Specification, logs _(optional)_, PV/PVC etc. for troubleshooting Amazon EKS customer support cases.
 
@@ -11,10 +11,10 @@ At a high level, you run this script from your machine's terminal against your d
 * Run this project as the EKS cluster root user and `Podname (-p) & Namespace (-n)` are mandatory input parameter.
 
 ```
-curl -O https://github.com/aws-samples/aws-eks-cluster-log-collector-script.git
+curl -O https://github.com/aws-samples/eks-pod-information-collector.git
 sudo bash eks-cluster-log-collector.sh <Provide Complete POD name> <Provide Complete Namespace Name In which that POD is running>
-OR
-./eks-cluster-log-collector.sh <Provide Complete POD name> <Provide Complete Namespace Name In which that POD is running>
+OR  
+./eks-pod-information-collector.sh <Provide Complete POD name> <Provide Complete Namespace Name In which that POD is running>
 ```
 
 NOTE: If you do not pass the required arguments `Podname (-p) & Namespace (-n)` , By default script will collect Default resources running in `KUBE-SYSTEM namespace`.
@@ -96,9 +96,9 @@ This script can be executed from your machine against any AWS EKS cluster and be
 #### Examples
 
 ```
-$ sudo bash ./aws-eks-pod-information-collector-script.sh --help
+$ sudo bash ./eks-pod-information-collector.sh --help
 
-USAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags
+USAGE: ./eks-pod-information-collector.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags
 
 MANDATORY FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER
 
@@ -113,7 +113,7 @@ OPTIONAL:
 ```
 SCENARIO 1: When you do not provide `Podname` & `Namespace` to the script
 
-$ sudo ./aws-eks-pod-information-collector-script.sh
+$ sudo ./eks-pod-information-collector.sh
 
 RESULT:
 
@@ -137,7 +137,7 @@ Done Collecting Information
 ```
 SCENARIO 2: When you Only  provide one of the argument `Podname` & `Namespace` to the script
 
-$ sudo ./aws-eks-pod-information-collector-script.sh -p test -n                                        ✔
+$ sudo ./eks-pod-information-collector.sh -p test -n                                        ✔
 
 USAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags
 
@@ -155,10 +155,10 @@ OPTIONAL:
 ```
 SCENARIO 3: When you provide both `Podname` & `Namespace` to the script
 
-$ sudo ./eks-cluster-log-collector.sh <Provide Complete POD name> <Provide Complete Namespace Name In which that POD is running>
+$ sudo ./eks-pod-information-collector.sh <Provide Complete POD name> <Provide Complete Namespace Name In which that POD is running>
 
 EX:
-$ sudo ./aws-eks-pod-information-collector-script.sh example-test-pod-123xxxx  test
+$ sudo ./eks-pod-information-collector.sh example-test-pod-123xxxx  test
 
 RESULT:
 
