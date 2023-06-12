@@ -1,4 +1,4 @@
-### EKS Support Bundle Script
+###  EKS Pod Information Collector (EPIC) Script
 
 This project was created to collect Amazon EKS resource information which includes collecting a specific POD Configurations/Specification, logs _(optional)_, PV/PVC etc. for troubleshooting Amazon EKS customer support cases.
 
