@@ -1,0 +1,82 @@
+Name:               ip-192-168-8-181.us-west-2.compute.internal
+Roles:              <none>
+Labels:             beta.kubernetes.io/arch=amd64
+                    beta.kubernetes.io/instance-type=t3.medium
+                    beta.kubernetes.io/os=linux
+                    failure-domain.beta.kubernetes.io/region=us-west-2
+                    failure-domain.beta.kubernetes.io/zone=us-west-2a
+                    k8s.io/cloud-provider-aws=2241ab40c2de08d4637a80c9c207ddcd
+                    kubernetes.io/arch=amd64
+                    kubernetes.io/hostname=ip-192-168-8-181.us-west-2.compute.internal
+                    kubernetes.io/os=linux
+                    node.kubernetes.io/instance-type=t3.medium
+                    topology.kubernetes.io/region=us-west-2
+                    topology.kubernetes.io/zone=us-west-2a
+Annotations:        alpha.kubernetes.io/provided-node-ip: 192.168.8.181
+                    node.alpha.kubernetes.io/ttl: 0
+                    volumes.kubernetes.io/controller-managed-attach-detach: true
+CreationTimestamp:  Wed, 14 Jun 2023 11:08:26 -0700
+Taints:             <none>
+Unschedulable:      false
+Lease:
+  HolderIdentity:  ip-192-168-8-181.us-west-2.compute.internal
+  AcquireTime:     <unset>
+  RenewTime:       Wed, 14 Jun 2023 17:03:47 -0700
+Conditions:
+  Type             Status  LastHeartbeatTime                 LastTransitionTime                Reason                       Message
+  ----             ------  -----------------                 ------------------                ------                       -------
+  MemoryPressure   False   Wed, 14 Jun 2023 17:00:07 -0700   Wed, 14 Jun 2023 11:08:26 -0700   KubeletHasSufficientMemory   kubelet has sufficient memory available
+  DiskPressure     False   Wed, 14 Jun 2023 17:00:07 -0700   Wed, 14 Jun 2023 11:08:26 -0700   KubeletHasNoDiskPressure     kubelet has no disk pressure
+  PIDPressure      False   Wed, 14 Jun 2023 17:00:07 -0700   Wed, 14 Jun 2023 11:08:26 -0700   KubeletHasSufficientPID      kubelet has sufficient PID available
+  Ready            True    Wed, 14 Jun 2023 17:00:07 -0700   Wed, 14 Jun 2023 11:08:37 -0700   KubeletReady                 kubelet is posting ready status
+Addresses:
+  InternalIP:   192.168.8.181
+  ExternalIP:   34.213.8.3
+  InternalDNS:  ip-192-168-8-181.us-west-2.compute.internal
+  Hostname:     ip-192-168-8-181.us-west-2.compute.internal
+  ExternalDNS:  ec2-34-213-8-3.us-west-2.compute.amazonaws.com
+Capacity:
+  cpu:                2
+  ephemeral-storage:  20959212Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             3943380Ki
+  pods:               17
+Allocatable:
+  cpu:                1930m
+  ephemeral-storage:  18242267924
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             3388372Ki
+  pods:               17
+System Info:
+  Machine ID:                 ec209db95db6a1f03b1ac3046e1d52f9
+  System UUID:                ec209db9-5db6-a1f0-3b1a-c3046e1d52f9
+  Boot ID:                    9593ca6f-bf84-44a8-ab1f-5b57d646062b
+  Kernel Version:             5.10.179-168.710.amzn2.x86_64
+  OS Image:                   Amazon Linux 2
+  Operating System:           linux
+  Architecture:               amd64
+  Container Runtime Version:  containerd://1.6.19
+  Kubelet Version:            v1.27.1-eks-2f008fe
+  Kube-Proxy Version:         v1.27.1-eks-2f008fe
+ProviderID:                   aws:///us-west-2a/i-0f4a34b52a05d3818
+Non-terminated Pods:          (6 in total)
+  Namespace                   Name                        CPU Requests  CPU Limits  Memory Requests  Memory Limits  Age
+  ---------                   ----                        ------------  ----------  ---------------  -------------  ---
+  client                      nginx                       0 (0%)        0 (0%)      0 (0%)           0 (0%)         5h
+  kube-system                 aws-node-l6m6n              50m (2%)      0 (0%)      0 (0%)           0 (0%)         5h55m
+  kube-system                 coredns-6ff9c46cd8-gdhbh    100m (5%)     0 (0%)      70Mi (2%)        170Mi (5%)     5h55m
+  kube-system                 coredns-6ff9c46cd8-n72vj    100m (5%)     0 (0%)      70Mi (2%)        170Mi (5%)     5h55m
+  kube-system                 kube-proxy-bs8qn            100m (5%)     0 (0%)      0 (0%)           0 (0%)         5h55m
+  stars                       frontend-dzvm7              0 (0%)        0 (0%)      0 (0%)           0 (0%)         5h30m
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests    Limits
+  --------           --------    ------
+  cpu                350m (18%)  0 (0%)
+  memory             140Mi (4%)  340Mi (10%)
+  ephemeral-storage  0 (0%)      0 (0%)
+  hugepages-1Gi      0 (0%)      0 (0%)
+  hugepages-2Mi      0 (0%)      0 (0%)
+Events:              <none>
