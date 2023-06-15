@@ -17,12 +17,6 @@ KUBE_SYSTEM_DS_DEP=(
 
 #Helper Functions
 
-colorClear='\033[0m'
-colorError='\033[1;31m'
-colorWarning='\033[1;33m'
-colorAttention='\033[1;36m'
-colorDone='\033[1;32m'
-
 function print() {
   echo -e "$@"
 }
@@ -32,57 +26,25 @@ function append() {
 }
 
 function error() {
-  echo -e "\n\t${colorError}[ERROR]: $* ${colorClear}\n"
+  echo -e "\n\t[ERROR]: $* \n"
   exit 1
 }
 
 function warn() {
-  echo -e "\n\t${colorWarning}[WARNING]: $* ${colorClear}\n"
-}
-
-function attention() {
-    print "${colorAttention}******** ATTENTION ********${colorClear}"
-    print "${colorAttention} $@ ${colorClear}"
-    print "${colorAttention}***************************\n${colorClear}"
+  echo -e "\n\t[WARNING]: $* \n"
 }
 
 function help() {
   print "\nUSAGE: ./aws-eks-pod-information-collector-script.sh -p <Podname> -n <Namespace of the pod> are Mandatory Flags"
   print "\nRequired FLAGS NEEDS TO BE PROVIDED IN THE SAME ORDER"
-  print "\n\t-p OR --podname \tPass this flag to provide the EKS pod name"
+  print "\n\t-p OR --pod \tPass this flag to provide the EKS pod name"
   print "\t-n OR --namespace\tPass this flag to provide the Namespace in which above specified pod is running"
   print "\nOPTIONAL:"
   print "\t-h  To Show this help message."
 }
 
-# Parse Input Parameters
-while [[ $# -gt 0 ]]; do
-  key="$1"
-  case $key in
-    -h | --help)
-       help && exit 0
-      ;;
-    -p | --podname)
-      POD_NAME=$2
-      #echo $POD_NAME
-      shift
-      shift
-      ;;
-    -n | --namespace)
-      NAMESPACE=$2
-      #echo $NAMESPACE
-      shift
-      shift
-      ;;
-    * )
-     help && exit 1
-      shift
-      shift
-      ;;
-  esac
-done
-
 # Main functions
+
 function init() {
   # Creating Output Directory
   CLUSTER_INFO=$(kubectl config view --minify -ojsonpath='{.clusters[0]}')
@@ -173,6 +135,8 @@ function get_pod_specifications() {
   kubectl get node $NODE -ojson > "${POD_OUTPUT_DIR}/Node_${NODE}.json"
   kubectl describe node $NODE > "${POD_OUTPUT_DIR}/Node_${NODE}.txt"
 
+  # TODO: Add support for non apps/v1 resources
+
   # Get Owner Details of DS/RS/Deploy/STS
   POD_OWNER_KIND='pod'
   POD_OWNER_NAME=$POD_NAME
@@ -211,7 +175,7 @@ function get_pod_svc_ingress() {
   # Get Ingress resources using labels
     if [[ $(kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items[*]}') ]] ; then
       kubectl get ingress -n $NAMESPACE -l $label -ojsonpath='{.items}' >> "${POD_OUTPUT_DIR}/Ingress.json"
-      kubectl describe ingress -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Ingress.txt"
+      kubectl describe ingress -n $NAMESPACE -l $label >> "${POD_OUTPUT_DIR}/Services.txt"
       ANN=$(kubectl get ingress -l $label -n $NAMESPACE -ojsonpath='{.items[*].metadata.annotations.kubernetes\.io/ingress\.class}')
       SPEC=$(kubectl get ingress -l $label -n $NAMESPACE -ojsonpath='{.items[*].spec.ingressClassName}')
       [[ ! $ANN ]] && INGRESS_CLASS=$SPEC || INGRESS_CLASS=$ANN
@@ -227,7 +191,39 @@ function get_pod_svc_ingress() {
     kubectl get deployment -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller -ojsonpath='{.items}'> "${POD_OUTPUT_DIR}/aws_lbc.json"
   fi
 
-} 
+}
+
+
+
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    -h | --help)
+       help && exit 0
+      ;;
+    -p | --pod)
+      POD_NAME=$2
+      #echo $POD_NAME
+      shift
+      shift
+      ;;
+    -n | --namespace)
+      NAMESPACE=$2
+      #echo $NAMESPACE
+      shift
+      shift
+      ;;
+    * )
+     help && exit 1
+      shift
+      shift
+      ;;
+  esac
+done
+
+echo $POD_NAME 
+echo $NAMESPACE
+ 
 
 
 function get_pod_volumes() {
@@ -277,7 +273,8 @@ function get_pod_volumes() {
     done
   fi 
 
-  # Check Mounted ConfigMaps for the pod are present
+  # Get Mounted ConfigMaps for the pod
+  # TODO: Should we get/read the configMap as well?
 
   CMS=$(kubectl get pod $POD_NAME -n $NAMESPACE -ojsonpath='{range .spec.volumes[*]}{.configMap.name}{"\n"}{end}')
   for cm in ${CMS[*]}; do
@@ -287,33 +284,27 @@ function get_pod_volumes() {
   done
 }
 
-# Optional log collection
 function get_pod_logs() {
-  attention "Please type "yes" Or "y" and press ENTER if you want to collect the logs of Pod , To Skip just press ENTER"
+  # Optional log collection
+  print "\n******** NOTE ********\n""Please type "yes" Or "y" and press ENTER if you want to collect the logs of Pod , To Skip just press ENTER\"${POD_NAME}\"\n""**********************"
   read -rep $'Do you want to collect the Pod logs ?\n>' COLLECT_LOGS
   COLLECT_LOGS=$(echo "$COLLECT_LOGS" | tr '[:upper:]' '[:lower:]')
 
   if [[ ${COLLECT_LOGS} == 'yes'  || ${COLLECT_LOGS} = 'y' ]] ; then
-    print "Collecting logs of Pod\n"
+    print "**********************\n""Collecting logs of Pod\n"
     kubectl logs $POD_NAME -n $NAMESPACE --timestamps > "${POD_OUTPUT_DIR}/${POD_NAME}.log"
   else 
-   print "Skipping the Pod logs collection \n"
+   print "**********************\n"" Skipping the Pod logs collection \n"
   fi
 }
 
 function finalize() {
-  warn "Please Remove any Confidential/Sensitive information (e.g. Logs, Passwords, API Tokens etc) and Bundle the logs using below Command"
-  attention "Please type "yes" Or "y" and press ENTER if you want to Create a Shareable TARBALL of the collected logs , To Skip just press ENTER"
-  read -rep $'Do you want to create a Tarball of the collected logs ?\n>' CREATE_TAR
-  CREATE_TAR=$(echo "$CREATE_TAR" | tr '[:upper:]' '[:lower:]')
-  if [[ ${CREATE_TAR} == 'yes'  || ${CREATE_TAR} = 'y' ]] ; then
-    print "Archiving collected information"
-    tar -czf "${PWD}/${OUTPUT_DIR_NAME}.tar.gz" "./${OUTPUT_DIR_NAME}"
-    print "\n\t${colorDone}Done!! your archived information is located in ${PWD}/${OUTPUT_DIR_NAME}.tar.gz${colorClear}"
-  else 
-   print "Skipping archiving collected information"
-   print "\n\t${colorDone}Done!!! Please run \"tar -czf "${PWD}/${OUTPUT_DIR_NAME}.tar.gz" "./${OUTPUT_DIR_NAME}"\" to create archived file in ${PWD}/${OUTPUT_DIR_NAME}.tar.gz${colorClear}"
-  fi
+  print "### Done Collecting Information ###"
+
+  print "+---------------- ATTENTION ------------------------------------------------------------------+" 
+  warn "*** Please Remove Any Confidential/Sensitive Information (e.g. Logs, Passwords, API Tokens etc) and Bundle the logs using below Command ***"
+  print "+------------------ END ----------------------------------------------------------------------+" 
+  print "\t tar -czf "${PWD}/${OUTPUT_DIR_NAME}.tar.gz" "./${OUTPUT_DIR_NAME}" " 
 }
 
 check_kubectl #Verify kubectl installation
