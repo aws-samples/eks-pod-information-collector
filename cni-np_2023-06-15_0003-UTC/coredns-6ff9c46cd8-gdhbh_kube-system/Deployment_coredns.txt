@@ -1,0 +1,54 @@
+Name:                   coredns
+Namespace:              kube-system
+CreationTimestamp:      Tue, 06 Jun 2023 10:41:09 -0700
+Labels:                 eks.amazonaws.com/component=coredns
+                        k8s-app=kube-dns
+                        kubernetes.io/name=CoreDNS
+Annotations:            deployment.kubernetes.io/revision: 1
+Selector:               eks.amazonaws.com/component=coredns,k8s-app=kube-dns
+Replicas:               2 desired | 2 updated | 2 total | 2 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  1 max unavailable, 25% max surge
+Pod Template:
+  Labels:           eks.amazonaws.com/component=coredns
+                    k8s-app=kube-dns
+  Annotations:      eks.amazonaws.com/compute-type: ec2
+  Service Account:  coredns
+  Containers:
+   coredns:
+    Image:       602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/coredns:v1.10.1-eksbuild.1
+    Ports:       53/UDP, 53/TCP, 9153/TCP
+    Host Ports:  0/UDP, 0/TCP, 0/TCP
+    Args:
+      -conf
+      /etc/coredns/Corefile
+    Limits:
+      memory:  170Mi
+    Requests:
+      cpu:        100m
+      memory:     70Mi
+    Liveness:     http-get http://:8080/health delay=60s timeout=5s period=10s #success=1 #failure=5
+    Readiness:    http-get http://:8080/health delay=0s timeout=1s period=10s #success=1 #failure=3
+    Environment:  <none>
+    Mounts:
+      /etc/coredns from config-volume (ro)
+      /tmp from tmp (rw)
+  Volumes:
+   tmp:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+   config-volume:
+    Type:               ConfigMap (a volume populated by a ConfigMap)
+    Name:               coredns
+    Optional:           false
+  Priority Class Name:  system-cluster-critical
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Progressing    True    NewReplicaSetAvailable
+  Available      True    MinimumReplicasAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   coredns-6ff9c46cd8 (2/2 replicas created)
+Events:          <none>
