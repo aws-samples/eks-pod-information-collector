@@ -164,8 +164,8 @@ function get_pod_specifications() {
 
   print "Collecting Resource related to ${POD_NAME}, Review Files in Directory: ${POD_NAME}_${NAMESPACE}"
   #Get Pod Details 
-  kubectl get pod $POD_NAME -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/Pod_${POD_NAME}.json" 
-  kubectl describe pod  $POD_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/Pod_${POD_NAME}.txt"
+  kubectl get pod $POD_NAME -n $NAMESPACE -ojson | sed '/"env": \[/,/]/d' > "${POD_OUTPUT_DIR}/Pod_${POD_NAME}.json" # Redact ENV section 
+  kubectl describe pod  $POD_NAME -n $NAMESPACE | sed '/Environment:/,/Mounts:/ { /Mounts:/!d; }' | > "${POD_OUTPUT_DIR}/Pod_${POD_NAME}.txt" # Redact ENV section 
 
 
   # Get NODE Info.
@@ -180,8 +180,8 @@ function get_pod_specifications() {
     KIND1=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath='{.metadata.ownerReferences[?(@.apiVersion=="apps/v1")].kind}')
     POD_OWNER_NAME=$(kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojsonpath="{.metadata.ownerReferences[?(@.kind=="\"${KIND1}\"")].name}")
     POD_OWNER_KIND=${KIND1}
-    kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojson > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.json"
-    kubectl describe $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.txt"
+    kubectl get $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE -ojson | sed -e '/"env": \[/,/]/d' -e 's/"kubectl.kubernetes.io\/last-applied-configuration": .*/"kubectl.kubernetes.io\/last-applied-configuration": ""/' > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.json" # Redact Last Applied Configuration  & ENV
+    kubectl describe $POD_OWNER_KIND $POD_OWNER_NAME -n $NAMESPACE | sed '/Environment:/,/Mounts:/ { /Mounts:/!d; }'} > "${POD_OUTPUT_DIR}/${POD_OWNER_KIND}_${POD_OWNER_NAME}.txt" # Redact ENV section 
   done
 
   # Get Service Account details
@@ -302,7 +302,7 @@ function get_pod_logs() {
 }
 
 function finalize() {
-  warn "Please Remove any Confidential/Sensitive information (e.g. Logs, Passwords, API Tokens etc) and Bundle the logs using below Command"
+  warn "Please Remove any Confidential/Sensitive information from Pod Logs file ""${POD_OUTPUT_DIR}/${POD_NAME}.log""\n\t\t(e.g. DB Passwords, API Tokens etc) and Bundle the logs using below Command"
   attention "Please type "yes" Or "y" and press ENTER if you want to Create a Shareable TARBALL of the collected logs , To Skip just press ENTER"
   read -rep $'Do you want to create a Tarball of the collected logs ?\n>' CREATE_TAR
   CREATE_TAR=$(echo "$CREATE_TAR" | tr '[:upper:]' '[:lower:]')
