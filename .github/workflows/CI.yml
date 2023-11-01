@@ -20,6 +20,6 @@ jobs:
         run: docker run --rm -v $(pwd):/script mvdan/shfmt --list --language-dialect auto --indent 2 --binary-next-line --case-indent --space-redirects /script/eks-pod-information-collector.sh
       - name: Analyze using shellcheck
         run: docker run --rm -v $(pwd):/script koalaman/shellcheck:stable --format gcc --severity error /script/eks-pod-information-collector.sh
-      - name: Build project
+      - name: Check whitespaces
         run: |
           git diff-tree --check $(git hash-object -t tree /dev/null) HEAD
