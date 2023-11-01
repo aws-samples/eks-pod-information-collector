@@ -26,8 +26,8 @@ jobs:
       - uses: actions/checkout@v3
       # Runs a single command using the runners shell
       - name: Lint using shfmt
-        run: docker run --rm mvdan/shfmt --list --language-dialect auto --indent 2 --binary-next-line --case-indent --space-redirects eks-pod-information-collector.sh
+        run: docker run --rm -v $(PWD):/script mvdan/shfmt --list --language-dialect auto --indent 2 --binary-next-line --case-indent --space-redirects /script/eks-pod-information-collector.sh
       
       - name: Analyze using shellcheck
-        run: docker run --rm koalaman/shellcheck:stable --format gcc --severity error eks-pod-information-collector.sh
+        run: docker run --rm -v $(PWD):/script koalaman/shellcheck:stable --format gcc --severity error /script/eks-pod-information-collector.sh
 
