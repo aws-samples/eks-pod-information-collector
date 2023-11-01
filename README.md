@@ -16,7 +16,7 @@ At a high level, you run this script from your local machine's terminal against 
 curl -O https://raw.githubusercontent.com/aws-samples/eks-pod-information-collector/main/eks-pod-information-collector.sh
 
 sudo bash eks-pod-information-collector.sh -p <Pod_Name> -n <Pod_Namespace>
-OR  
+OR
 sudo bash eks-pod-information-collector.sh --podname <Pod_Name> --namespace <Pod_Namespace>
 ```
 
