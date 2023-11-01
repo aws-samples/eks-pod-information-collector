@@ -1,3 +1,5 @@
+[![CI_dev](https://github.com/aws-samples/eks-pod-information-collector/actions/workflows/CI_dev.yml/badge.svg?branch=dev-punkwalker)](https://github.com/aws-samples/eks-pod-information-collector/actions/workflows/CI_dev.yml)
+
 ##  EKS Pod Information Collector (EPIC)
 
 This project was created to collect Amazon EKS resource information related to a specific POD such as Configurations/Specification, PV/PVC etc., logs _(optional)_ etc. for troubleshooting Amazon EKS customer support cases.
