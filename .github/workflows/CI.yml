@@ -27,5 +27,3 @@ jobs:
         run: |
           grep -qi 'delete\|remove' eks-pod-information-collector.sh
           [ $? -eq 0 ] && exit 1
-          
-      
