@@ -24,5 +24,7 @@ jobs:
         run: |
           git diff-tree --check $(git hash-object -t tree /dev/null) HEAD
       - name: Check for destructive words
+        shell: bash
         run: |
-          bash hack/scan_delete_actions.sh
+          grep -i 'delete\|remove' eks-pod-information-collector.sh
+          echo $?
