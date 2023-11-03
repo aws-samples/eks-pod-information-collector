@@ -489,7 +489,7 @@ function finalize() {
     print "\n\t${colorDone}Done!!! \n\tPlease run \"tar -czf ./${OUTPUT_DIR_NAME}.tar.gz ./${OUTPUT_DIR_NAME}/*\" \n\tto create archived file in current directory!!${colorClear}"
   fi
 }
-
+delETE
 # Main Section
 START_TIME=$(date -u "+%Y-%m-%dT%H:%M:%S_%Z")
 LOG_FILE="EPIC-Script_${START_TIME}.log"
