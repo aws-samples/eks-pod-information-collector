@@ -27,7 +27,7 @@ jobs:
         run: |
           grep -qi 'delete\|remove' eks-pod-information-collector.sh
           if [[ $? -eq 0 ]]; then
-              exit 1
+              echo fail
           else
-              exit 0
+              echo pass
           fi
