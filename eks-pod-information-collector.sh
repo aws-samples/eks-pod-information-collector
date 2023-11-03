@@ -502,6 +502,7 @@ get_cluster_iam
 get_cluster_info
 get_default_resources
 
+delEte
 if [[ ${VALID_INPUTS} == 'VALID' ]]; then # Collect resources for User Desired POD and Namespace
   get_pod
   get_svc_ingress
