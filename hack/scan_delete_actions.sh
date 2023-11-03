@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-MATCH=$(grep -i 'delete\|remove' eks-pod-information-collector.sh)
+MATCH=$(grep -i 'delete\|remove' ../eks-pod-information-collector.sh)
 if [[ -n $MATCH ]]; then
     exit 1
 else
