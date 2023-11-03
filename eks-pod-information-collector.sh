@@ -67,8 +67,8 @@ function prompt() {
 function help() {
   print "\nUsage: ./$(basename "${0}") -p <Podname> -n <Namespace of the pod> -s [Service Name] -i [Ingress Name] "
   print "\nRequired:"
-  print "  -p, --podname \tPod name"
-  print "  -n, --namespace \tPod Namespace"
+  print "  -p, --podname \tPod name \t(Required)"
+  print "  -n, --namespace \tPod Namespace \t(Required)"
   print "\nOPTIONAL:"
   print "  -s, --service \tService name associated with the Pod"
   print "  -i, --ingress \tIngress name associated with the Pod"
