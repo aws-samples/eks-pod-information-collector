@@ -2,7 +2,7 @@
 
 set -o errexit
 
-grep -qi 'delete\|remove' eks-pod-information-collector.sh
+grep -i 'delete\|remove' eks-pod-information-collector.sh
 # if [[ $? -eq 0 ]]; then
 #     exit 1
 # else
