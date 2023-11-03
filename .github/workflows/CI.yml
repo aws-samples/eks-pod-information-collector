@@ -26,8 +26,7 @@ jobs:
       - name: Check for destructive words
         shell: bash
         run: |
-          grep -i 'delete\|remove' eks-pod-information-collector.sh
-          if [[ $? -eq 0 ]]; then
+          if grep -i 'delete\|remove' eks-pod-information-collector.sh ; then
               exit 1
           else
               exit 0
