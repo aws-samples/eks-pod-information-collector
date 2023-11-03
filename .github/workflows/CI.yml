@@ -25,10 +25,4 @@ jobs:
           git diff-tree --check $(git hash-object -t tree /dev/null) HEAD
       - name: Check for destructive words
         run: |
-          #!/usr/bin/bash
-          grep -qi 'delete\|remove' eks-pod-information-collector.sh
-          if [[ $? -eq 0 ]]; then
-              echo fail
-          else
-              echo pass
-          fi
+          bash hack/scan_delete_actions.sh
