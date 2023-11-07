@@ -506,5 +506,3 @@ if [[ ${VALID_INPUTS} == 'VALID' ]]; then # Collect resources for User Desired P
   get_volumes
   finalize
 fi
-
-kubectl delete
