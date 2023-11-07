@@ -145,7 +145,7 @@ done
 
 # Main functions
 #Verify KUBECTL command installation
-function check_kkubectl() {
+function check_Kubectl() {
   if (! command -v kubectl >> /dev/null); then
     error "KUBECTL not found. Please install KUBECTL or make sure the PATH variable is set correctly. For more information: https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html"
   fi
@@ -493,7 +493,7 @@ START_TIME=$(date -u "+%Y-%m-%dT%H:%M:%S_%Z")
 LOG_FILE="EPIC-Script_${START_TIME}.log"
 log -p "Script execution started"
 trap 'error "Recieved SIGINT cleaning up & terminating"' SIGINT
-check_kkubectl
+check_Kubectl
 check_permissions
 validate_args
 get_cluster_iam
