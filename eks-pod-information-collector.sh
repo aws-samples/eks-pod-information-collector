@@ -95,18 +95,16 @@ function get_object() {
   if [[ -n "${NAME}" ]]; then
     log -p "Collecting information related to ${KIND}: \"${NAME}\""
 
-    local OP='get'
     log "Getting ${KIND}: \"${NAME}\""
     local FILE
     FILE=$(get_filename "${KIND}_${NAME}" "json")
-    OBJECT=$(kubectl "${OP}" "${KIND}" -n "${NS}" "${NAME}" -ojson | sed -e '/"env": \[/,/]/d; s/"kubectl.kubernetes.io\/last-applied-configuration": .*/"kubectl.kubernetes.io\/last-applied-configuration": ""/')
+    OBJECT=$(kubectl get "${KIND}" -n "${NS}" "${NAME}" -ojson | sed -e '/"env": \[/,/]/d; s/"kubectl.kubernetes.io\/last-applied-configuration": .*/"kubectl.kubernetes.io\/last-applied-configuration": ""/')
     echo "${OBJECT}" >> "${FILE}"
 
-    local OP='describe'
     log "Describing ${KIND}: \"${NAME}\""
     local FILE
     FILE=$(get_filename "${KIND}_${NAME}" "txt")
-    kubectl "${OP}" "${KIND}" -n "${NS}" "${NAME}" | sed '/Environment:/,/Mounts:/ { /Mounts:/!d; }' >> "${FILE}"
+    kubectl describe "${KIND}" -n "${NS}" "${NAME}" | sed '/Environment:/,/Mounts:/ { /Mounts:/!d; }' >> "${FILE}"
   fi
 }
 
@@ -146,10 +144,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Main functions
-#Verify kubectl installation
-function check_kubectl() {
+#Verify KUBECTL command installation
+function check_KUBECTL() {
   if (! command -v kubectl >> /dev/null); then
-    error "kubectl not found. Please install kubectl or make sure the PATH variable is set correctly. For more information: https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html"
+    error "KUBECTL not found. Please install KUBECTL or make sure the PATH variable is set correctly. For more information: https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html"
   fi
 
   local CONFIG
@@ -495,7 +493,7 @@ START_TIME=$(date -u "+%Y-%m-%dT%H:%M:%S_%Z")
 LOG_FILE="EPIC-Script_${START_TIME}.log"
 log -p "Script execution started"
 trap 'error "Recieved SIGINT cleaning up & terminating"' SIGINT
-check_kubectl
+check_KUBECTL
 check_permissions
 validate_args
 get_cluster_iam

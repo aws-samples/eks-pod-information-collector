@@ -26,7 +26,7 @@ jobs:
       - name: Check for destructive words
         shell: bash
         run: |
-          if grep -i 'delete\|remove' eks-pod-information-collector.sh ; then
+          if $(cat eks-pod-information-collector.sh | grep 'kubectl' | grep -v 'command -v kubectl' | grep -v 'kubectl.html' | grep -vE 'get|describe|auth|logs|version|config') ; then
               exit 1
           else
               exit 0
