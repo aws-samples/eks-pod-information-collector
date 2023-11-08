@@ -1,4 +1,4 @@
-[![CI](https://github.com/aws-samples/eks-pod-information-collector/actions/workflows/CI.yml/badge.svg?branch=dev)](https://github.com/aws-samples/eks-pod-information-collector/actions/workflows/CI.yml)
+[![CI](https://github.com/aws-samples/eks-pod-information-collector/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/aws-samples/eks-pod-information-collector/actions/workflows/CI.yml)
 
 ##  EKS Pod Information Collector (EPIC)
 
