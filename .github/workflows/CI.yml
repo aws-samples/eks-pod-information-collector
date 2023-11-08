@@ -17,9 +17,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Lint using shfmt
-        run: docker run --rm -v $(pwd):/script mvdan/shfmt --list --language-dialect auto --indent 2 --binary-next-line --case-indent --space-redirects /script/eks-pod-information-collector.sh
+        run: docker run --rm -v $(pwd):/script mvdan/shfmt --list --language-dialect auto --indent 2 --binary-next-line --case-indent --space-redirects --write /script/eks-pod-information-collector.sh
       - name: Analyze using shellcheck
-        run: docker run --rm -v $(pwd):/script koalaman/shellcheck:stable --format gcc --severity error /script/eks-pod-information-collector.sh
+        run: docker run --rm -v $(pwd):/script koalaman/shellcheck:stable --format gcc /script/eks-pod-information-collector.sh
       - name: Check whitespaces
         run: |
           git diff-tree --check $(git hash-object -t tree /dev/null) HEAD
+      - name: Check for destructive words
+        shell: bash
+        run: |
+          if cat eks-pod-information-collector.sh | grep 'kubectl' | grep -v 'command -v kubectl' | grep -v 'kubectl.html' | grep -vE 'get|describe|auth|logs|version|config' ; then
+              exit 1
+          else
+              exit 0
+          fi
