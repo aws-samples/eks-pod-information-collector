@@ -468,6 +468,16 @@ function get_volumes() {
   fi
 }
 
+function find_namespace() {
+  # Takes a kind and name and finds the namespace of the given object, then prints it out
+  local KIND=$1
+  local NAME=$2
+  local NS
+
+  NS=$(kubectl get "${KIND}" --all-namespaces -o jsonpath="{.items[?(@.metadata.name==\"${NAME}\")].metadata.namespace}")
+  echo "${NS}"
+}
+
 function finalize() {
   prompt "Please type \"Yes\" and press ENTER if you want to archive the collected information, To Skip just press ENTER"
   read -t 30 -rep $'Do you want to create a Tarball of the collected information?\n>' CREATE_TAR
