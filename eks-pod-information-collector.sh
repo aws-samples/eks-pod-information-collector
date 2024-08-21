@@ -478,6 +478,37 @@ function find_namespace() {
   echo "${NS}"
 }
 
+function get_karpenter() {
+  # Checks if Karpenter exists in the cluster and grabs required information from it
+  OUTPUT_DIR="${OUTPUT_DIR_NAME}/karpenter"
+  mkdir "$OUTPUT_DIR"
+  local KARPENTER_NS
+  # Check if Karpenter is present
+  KARPENTER_NS=$(find_namespace "deployment" "karpenter")
+  if [[ -n $KARPENTER_NS ]]; then
+    log -p "Collecting information related to Karpenter"
+    log "Getting Karpenter deployment logs of all containers"
+    KARPENTER_LOG_FILE=$(get_filename "karpenter" "log")
+    kubectl logs -l app.kubernetes.io/name=karpenter -n "${KARPENTER_NS}" --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
+
+    log "Getting Karpenter deployment"
+    get_object "deployment" "karpenter" "${KARPENTER_NS}"
+
+    # TODO: Maybe split up these resources still undecided
+    log "Get Karpenter NodePool"
+    KARPENTER_NODEPOOL_FILE=$(get_filename "karpenter_nodepool" "yaml")
+    kubectl get nodepool -o yaml >> "${KARPENTER_NODEPOOL_FILE}"
+
+    log "Get Karpenter EC2 NodeClass"
+    KARPENTER_EC2NODECLASS_FILE=$(get_filename "karpenter-ec2nodeclass" "yaml")
+    kubectl get ec2nodeclass -o yaml >> "${KARPENTER_EC2NODECLASS_FILE}"
+
+    log "Get Karpenter NodeClaim"
+    KARPENTER_NODECLAIM_FILE=$(get_filename "karpenter-nodeclaim" "yaml")
+    kubectl get nodeclaim -o yaml >> "${KARPENTER_NODECLAIM_FILE}"
+  fi
+}
+
 function finalize() {
   prompt "Please type \"Yes\" and press ENTER if you want to archive the collected information, To Skip just press ENTER"
   read -t 30 -rep $'Do you want to create a Tarball of the collected information?\n>' CREATE_TAR
@@ -509,6 +540,7 @@ validate_args
 get_cluster_iam
 get_cluster_info
 get_default_resources
+get_karpenter
 
 if [[ ${VALID_INPUTS} == 'VALID' ]]; then # Collect resources for User Desired POD and Namespace
   get_pod
