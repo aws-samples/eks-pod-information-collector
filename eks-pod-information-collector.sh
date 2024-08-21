@@ -468,16 +468,6 @@ function get_volumes() {
   fi
 }
 
-function find_namespace() {
-  # Takes a kind and name and finds the namespace of the given object, then prints it out
-  local KIND=$1
-  local NAME=$2
-  local NS
-
-  NS=$(kubectl get "${KIND}" --all-namespaces -o jsonpath="{.items[?(@.metadata.name==\"${NAME}\")].metadata.namespace}")
-  echo "${NS}"
-}
-
 function get_karpenter() {
   # Checks if Karpenter exists in the cluster and grabs required information from it
   OUTPUT_DIR="${OUTPUT_DIR_NAME}/karpenter"
