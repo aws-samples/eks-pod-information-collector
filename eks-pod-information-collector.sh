@@ -473,18 +473,18 @@ function get_karpenter() {
   OUTPUT_DIR="${OUTPUT_DIR_NAME}/karpenter"
   mkdir "$OUTPUT_DIR"
 
-  local KARPENTER_MANIFEST
-  KARPENTER_MANIFEST=$(kubectl get deployment -n karpenter -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}')
-  if [[ -n $KARPENTER_MANIFEST ]]; then
+  local KARPENTER
+  KARPENTER=$(kubectl get deployment -n kube-system -l app.kubernetes.io/name=karpenter -ojsonpath='{.items[*].metadata.name}')
+  if [[ -n $KARPENTER ]]; then
     log -p "Collecting information related to Karpenter"
 
     log "Getting Karpenter deployment logs of all containers"
     KARPENTER_LOG_FILE=$(get_filename "karpenter" "log")
-    kubectl logs -l app.kubernetes.io/name=karpenter -n karpenter --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
+    kubectl logs -l app.kubernetes.io/name=karpenter -n kube-system --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
 
     log "Getting Karpenter deployment"
     KARPENTER_DEPLOY_FILE=$(get_filename "karpenter_deployment" "json")
-    echo ${KARPENTER_MANIFEST} > ${KARPENTER_DEPLOY_FILE}
+    kubectl get deployment -n kube-system -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}' > ${KARPENTER_DEPLOY_FILE}
 
     log "Get Karpenter NodePool"
     KARPENTER_NODEPOOL_FILE=$(get_filename "karpenter_nodepool" "yaml")
