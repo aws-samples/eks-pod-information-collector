@@ -391,7 +391,7 @@ function get_volumes() {
   # Get PVC/PV for the pod
   log "Getting Pod: ${POD_NAME} to determine PVC names"
   VOLUMES_CLAIMS=$(kubectl get pod "$POD_NAME" -n "${NAMESPACE}" -ojsonpath='{range .spec.volumes[*]}{.persistentVolumeClaim.claimName}{"\n"}{end}') # Get PVC Names
-  if [[ "${#VOLUMES_CLAIMS[@]}" -eq 0 ]]; then
+  if [[ "${#VOLUMES_CLAIMS[@]}" -gt 0 ]]; then
     for claim in "${VOLUMES_CLAIMS[@]}"; do
       get_object pvc "$claim"
       local PVC=$OBJECT
