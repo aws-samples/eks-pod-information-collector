@@ -470,19 +470,28 @@ function get_volumes() {
 
 function get_karpenter() {
   # Checks if Karpenter exists in the cluster and grabs required information from it
-  OUTPUT_DIR="${OUTPUT_DIR_NAME}/karpenter"
-  mkdir "$OUTPUT_DIR"
+  local KARPENTER_COLLECTION
+  local NS
 
-  local KARPENTER
-  KARPENTER=$(kubectl get deployment -n kube-system -l app.kubernetes.io/name=karpenter -ojsonpath='{.items[*].metadata.name}')
-  if [[ -n $KARPENTER ]]; then
+  if [[ -n $(kubectl get deployment -n kube-system -l app.kubernetes.io/name=karpenter -ojsonpath='{.items[*].metadata.name}') ]]; then
+    KARPENTER_COLLECTION=true
+    NS=kube-system
+  elif [[ -n $(kubectl get deployment -n karpenter -l app.kubernetes.io/name=karpenter -ojsonpath='{.items[*].metadata.name}') ]]; then
+    KARPENTER_COLLECTION=true
+    NS=karpenter
+  fi
+
+  if [[ "${KARPENTER_COLLECTION}" ]]; then
+    OUTPUT_DIR="${OUTPUT_DIR_NAME}/karpenter"
+    mkdir "$OUTPUT_DIR"
+
     log -p "Collecting Karpenter deployment information & logs"
     log "Getting Karpenter deployment logs of all containers"
     KARPENTER_LOG_FILE=$(get_filename "karpenter" "log")
-    kubectl logs -l app.kubernetes.io/name=karpenter -n kube-system --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
+    kubectl logs -l app.kubernetes.io/name=karpenter -n "${NS}" --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
     log "Getting Karpenter deployment"
     KARPENTER_DEPLOY_FILE=$(get_filename "karpenter_deployment" "json")
-    kubectl get deployment -n kube-system -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}' > ${KARPENTER_DEPLOY_FILE}
+    kubectl get deployment -n "${NS}" -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}' > ${KARPENTER_DEPLOY_FILE}
     log "Getting Karpenter NodePool"
     KARPENTER_NODEPOOL_FILE=$(get_filename "karpenter_nodepool" "yaml")
     kubectl get nodepool -o yaml >> "${KARPENTER_NODEPOOL_FILE}"
