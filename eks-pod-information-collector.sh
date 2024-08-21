@@ -476,26 +476,21 @@ function get_karpenter() {
   local KARPENTER
   KARPENTER=$(kubectl get deployment -n kube-system -l app.kubernetes.io/name=karpenter -ojsonpath='{.items[*].metadata.name}')
   if [[ -n $KARPENTER ]]; then
-    log -p "Collecting information related to Karpenter"
-
+    log -p "Collecting Karpenter deployment information & logs"
     log "Getting Karpenter deployment logs of all containers"
     KARPENTER_LOG_FILE=$(get_filename "karpenter" "log")
     kubectl logs -l app.kubernetes.io/name=karpenter -n kube-system --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
-
     log "Getting Karpenter deployment"
     KARPENTER_DEPLOY_FILE=$(get_filename "karpenter_deployment" "json")
     kubectl get deployment -n kube-system -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}' > ${KARPENTER_DEPLOY_FILE}
-
-    log "Get Karpenter NodePool"
+    log "Getting Karpenter NodePool"
     KARPENTER_NODEPOOL_FILE=$(get_filename "karpenter_nodepool" "yaml")
     kubectl get nodepool -o yaml >> "${KARPENTER_NODEPOOL_FILE}"
-
-    log "Get Karpenter EC2 NodeClass"
-    KARPENTER_EC2NODECLASS_FILE=$(get_filename "karpenter-ec2nodeclass" "yaml")
+    log "Getting Karpenter EC2 NodeClass"
+    KARPENTER_EC2NODECLASS_FILE=$(get_filename "karpenter_ec2nodeclass" "yaml")
     kubectl get ec2nodeclass -o yaml >> "${KARPENTER_EC2NODECLASS_FILE}"
-
-    log "Get Karpenter NodeClaim"
-    KARPENTER_NODECLAIM_FILE=$(get_filename "karpenter-nodeclaim" "yaml")
+    log "Getting Karpenter NodeClaim"
+    KARPENTER_NODECLAIM_FILE=$(get_filename "karpenter_nodeclaim" "yaml")
     kubectl get nodeclaim -o yaml >> "${KARPENTER_NODECLAIM_FILE}"
   fi
 }
