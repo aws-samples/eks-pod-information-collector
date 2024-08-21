@@ -472,19 +472,20 @@ function get_karpenter() {
   # Checks if Karpenter exists in the cluster and grabs required information from it
   OUTPUT_DIR="${OUTPUT_DIR_NAME}/karpenter"
   mkdir "$OUTPUT_DIR"
-  local KARPENTER_NS
-  # Check if Karpenter is present
-  KARPENTER_NS=$(find_namespace "deployment" "karpenter")
-  if [[ -n $KARPENTER_NS ]]; then
+
+  local KARPENTER_MANIFEST
+  KARPENTER_MANIFEST=$(kubectl get deployment -n karpenter -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}')
+  if [[ -n $KARPENTER_MANIFEST ]]; then
     log -p "Collecting information related to Karpenter"
+
     log "Getting Karpenter deployment logs of all containers"
     KARPENTER_LOG_FILE=$(get_filename "karpenter" "log")
-    kubectl logs -l app.kubernetes.io/name=karpenter -n "${KARPENTER_NS}" --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
+    kubectl logs -l app.kubernetes.io/name=karpenter -n karpenter --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
 
     log "Getting Karpenter deployment"
-    get_object "deployment" "karpenter" "${KARPENTER_NS}"
+    KARPENTER_DEPLOY_FILE=$(get_filename "karpenter_deployment" "json")
+    echo ${KARPENTER_MANIFEST} > ${KARPENTER_DEPLOY_FILE}
 
-    # TODO: Maybe split up these resources still undecided
     log "Get Karpenter NodePool"
     KARPENTER_NODEPOOL_FILE=$(get_filename "karpenter_nodepool" "yaml")
     kubectl get nodepool -o yaml >> "${KARPENTER_NODEPOOL_FILE}"
@@ -498,6 +499,7 @@ function get_karpenter() {
     kubectl get nodeclaim -o yaml >> "${KARPENTER_NODECLAIM_FILE}"
   fi
 }
+
 
 function finalize() {
   prompt "Please type \"Yes\" and press ENTER if you want to archive the collected information, To Skip just press ENTER"
