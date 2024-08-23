@@ -491,7 +491,7 @@ function get_karpenter() {
     kubectl logs -l app.kubernetes.io/name=karpenter -n "${NS}" --all-containers --tail=-1 > "${KARPENTER_LOG_FILE}"
     log "Getting Karpenter deployment"
     KARPENTER_DEPLOY_FILE=$(get_filename "karpenter_deployment" "json")
-    kubectl get deployment -n "${NS}" -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}' > ${KARPENTER_DEPLOY_FILE}
+    kubectl get deployment -n "${NS}" -l app.kubernetes.io/name=karpenter -ojsonpath='{.items}' > "${KARPENTER_DEPLOY_FILE}"
     log "Getting Karpenter NodePool"
     KARPENTER_NODEPOOL_FILE=$(get_filename "karpenter_nodepool" "yaml")
     kubectl get nodepool -o yaml >> "${KARPENTER_NODEPOOL_FILE}"
@@ -503,7 +503,6 @@ function get_karpenter() {
     kubectl get nodeclaim -o yaml >> "${KARPENTER_NODECLAIM_FILE}"
   fi
 }
-
 
 function finalize() {
   prompt "Please type \"Yes\" and press ENTER if you want to archive the collected information, To Skip just press ENTER"
