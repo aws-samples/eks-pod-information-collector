@@ -23,7 +23,7 @@ def fetch_aws_node_daemonset(api_instance):
     global cached_aws_node_daemonset
     if cached_aws_node_daemonset is None:
         try:
-            print("Fetching aws-node DaemonSet from Kubernetes API...")
+            print("Fetching aws-node DaemonSet from Kubernetes API to Cache...")
             cached_aws_node_daemonset = api_instance.read_namespaced_daemon_set(name="aws-node", namespace="kube-system")
         except client.ApiException as e:
             print(f"Error fetching aws-node DaemonSet: {e}")
@@ -129,10 +129,10 @@ def check_cni_var(api_instance, mode):
     daemonset = fetch_aws_node_daemonset(api_instance)
     if daemonset:
         env_vars = {var.name: var.value for var in daemonset.spec.template.spec.containers[0].env if var.value is not None}
-        custom_networking = env_vars.get(mode, "").lower() == "true"
+        check_variable = env_vars.get(mode, "").lower() == "true"
         if mode not in env_vars:
             print(f"WARNING: {mode} environment variable is not set")
-        return custom_networking
+        return check_variable
     else:
         return False
 
@@ -153,8 +153,8 @@ def get_eniconfig_subnet_ids(custom_objects):
 
 # Fetch WARM target values using cached aws-node DaemonSet
 def get_warm_target_values(api_instance):
-    print("Fetching WARM_ENI_TARGET, WARM_PREFIX_TARGET, WARM_IP_TARGET and MINIMUM_IP_TARGET values...")
     daemonset = fetch_aws_node_daemonset(api_instance)
+    print("Fetching WARM_ENI_TARGET, WARM_PREFIX_TARGET, WARM_IP_TARGET and MINIMUM_IP_TARGET values...")
     if daemonset:
         env_vars = {var.name: var.value for var in daemonset.spec.template.spec.containers[0].env if var.value is not None}
         warm_ip_target = env_vars.get("WARM_IP_TARGET")
@@ -206,7 +206,10 @@ def get_worker_node_subnets(ec2_client, internal_ip):
 def generate_log_file(cluster_name, subnet_ips, worker_node_ips, pod_ips, worker_subnets, 
                       warm_ip_target, warm_prefix_target, warm_eni_target, minimum_ip_target, custom_networking_enabled,
                       prefix_delegation_enabled, eniconfig_subnets, ec2_client):
-    with open('cluster_network_analysis.txt', 'w') as log_file:
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"cluster_network_analysis_{timestamp}.txt"
+    with open(filename, 'w') as log_file:
         log_file.write(f"=== EKS Cluster IP Analysis ===\n")
         log_file.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         log_file.write(f"Cluster Name: {cluster_name}\n\n")
@@ -215,7 +218,7 @@ def generate_log_file(cluster_name, subnet_ips, worker_node_ips, pod_ips, worker
         log_file.write(f"EC2 Instance IPs: {len(worker_node_ips)}\n")
         log_file.write(f"Pod IPs: {len(pod_ips) - 2}\n\n")
 
-        headers = ["Subnet ID", "AZ", "CIDR", "Used IPs", "Free IPs", "Usage Bar"]
+        headers = ["Subnet ID", "AZ", "CIDR", "Total IPs", "Used IPs", "Free IPs", "Usage Bar"]
 
         cluster_table_data = []
         for subnet_id, data in subnet_ips.items():
@@ -267,6 +270,7 @@ def generate_log_file(cluster_name, subnet_ips, worker_node_ips, pod_ips, worker
             log_file.write("No ENIConfig subnets found.\n\n")
 
         log_file.write("=== End of Analysis ===\n")
+        print(f"\n\nResults have been written to {filename}")
 
 def main():
     print("\n=== Initializing EKS Cluster IP Analysis ===\n")
@@ -323,7 +327,6 @@ def main():
                       prefix_delegation_enabled, eniconfig_subnets, ec2_client)
 
     print("\n=== Analysis Complete ===\n")
-    print("Results have been written to cluster_analysis_log.txt")
 
 if __name__ == "__main__":
     main()
