@@ -5,6 +5,8 @@ from tabulate import tabulate
 import os, sys
 from datetime import datetime
 
+# Global variable to cache the aws-node DaemonSet
+cached_aws_node_daemonset = None
 
 def create_usage_bar(current, total, bar_length=10):
     try:
@@ -15,6 +17,21 @@ def create_usage_bar(current, total, bar_length=10):
     except Exception as e:
         print(f"Error creating usage bar: {str(e)}")
         return "N/A"
+
+# Fetch and cache aws-node DaemonSet
+def fetch_aws_node_daemonset(api_instance):
+    global cached_aws_node_daemonset
+    if cached_aws_node_daemonset is None:
+        try:
+            print("Fetching aws-node DaemonSet from Kubernetes API...")
+            cached_aws_node_daemonset = api_instance.read_namespaced_daemon_set(name="aws-node", namespace="kube-system")
+        except client.ApiException as e:
+            print(f"Error fetching aws-node DaemonSet: {e}")
+            cached_aws_node_daemonset = None
+    else:
+        print("Using cached aws-node DaemonSet.")
+    return cached_aws_node_daemonset
+
 
 def get_subnet_usage_info(ec2_client, subnet_id):
     print(f"Fetching subnet usage info for subnet {subnet_id}...")
@@ -106,17 +123,17 @@ def get_cluster_pod_ips(v1):
     return pod_ips
 
 
+# Check CNI variable using cached aws-node DaemonSet
 def check_cni_var(api_instance, mode):
     print(f"Checking if {mode} is enabled...")
-    try:
-        daemonset = api_instance.read_namespaced_daemon_set(name="aws-node", namespace="kube-system")
+    daemonset = fetch_aws_node_daemonset(api_instance)
+    if daemonset:
         env_vars = {var.name: var.value for var in daemonset.spec.template.spec.containers[0].env if var.value is not None}
         custom_networking = env_vars.get(mode, "").lower() == "true"
         if mode not in env_vars:
             print(f"WARNING: {mode} environment variable is not set")
         return custom_networking
-    except client.ApiException as e:
-        print(f"Exception when calling AppsV1Api->read_namespaced_daemon_set: {e}")
+    else:
         return False
 
 
@@ -134,16 +151,17 @@ def get_eniconfig_subnet_ids(custom_objects):
         return []
 
 
+# Fetch WARM target values using cached aws-node DaemonSet
 def get_warm_target_values(api_instance):
     print("Fetching WARM_ENI_TARGET, WARM_PREFIX_TARGET, WARM_IP_TARGET and MINIMUM_IP_TARGET values...")
-    try:
-        daemonset = api_instance.read_namespaced_daemon_set(name="aws-node", namespace="kube-system")
+    daemonset = fetch_aws_node_daemonset(api_instance)
+    if daemonset:
         env_vars = {var.name: var.value for var in daemonset.spec.template.spec.containers[0].env if var.value is not None}
         warm_ip_target = env_vars.get("WARM_IP_TARGET")
         warm_prefix_target = env_vars.get("WARM_PREFIX_TARGET")
         warm_eni_target = env_vars.get("WARM_ENI_TARGET")
         minimum_ip_target = env_vars.get("MINIMUM_IP_TARGET")
-        
+
         if "WARM_IP_TARGET" not in env_vars:
             print("WARNING: WARM_IP_TARGET environment variable is not set")
         if "WARM_PREFIX_TARGET" not in env_vars:
@@ -154,9 +172,8 @@ def get_warm_target_values(api_instance):
             print("WARNING: MINIMUM_IP_TARGET environment variable is not set")
         
         return warm_ip_target, warm_prefix_target, warm_eni_target, minimum_ip_target
-    except client.ApiException as e:
+    else:
         print("Could not retrieve IP envs from VPC CNI")
-        print(f"Exception when calling AppsV1Api->read_namespaced_daemon_set: {e}")
         return None, None, None
 
 
