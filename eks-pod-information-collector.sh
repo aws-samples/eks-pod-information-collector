@@ -99,7 +99,14 @@ function get_object() {
     local FILE
     FILE=$(get_filename "${KIND}_${NAME}" "json")
     OBJECT=$(kubectl get "${KIND}" -n "${NS}" "${NAME}" -ojson | sed -e '/"env": \[/,/]/d; s/"kubectl.kubernetes.io\/last-applied-configuration": .*/"kubectl.kubernetes.io\/last-applied-configuration": ""/')
-    echo "${OBJECT}" >> "${FILE}"
+
+    if [ "$OUTPUT" = "yaml" ]; then
+      FILE_YAML=$(get_filename "${KIND}_${NAME}" "yaml")
+      OBJECT_YAML=$(kubectl get "${KIND}" -n "${NS}" "${NAME}" -oyaml)
+      echo "${OBJECT_YAML}" >> "${FILE_YAML}"
+    else
+      echo "${OBJECT}" >> "${FILE}"
+    fi
 
     log "Describing ${KIND}: \"${NAME}\""
     local FILE
@@ -132,6 +139,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     -i | --ingress)
       INGRESS_NAME=$2
+      shift
+      shift
+      ;;
+    -o | --output)
+      OUTPUT=$2
       shift
       shift
       ;;
