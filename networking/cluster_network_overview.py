@@ -80,20 +80,32 @@ def get_cluster_worker_node_ips(v1, ec2_client):
     worker_subnet_info = defaultdict(list)
 
     try:
-        # List all nodes in the cluster
-        nodes = v1.list_node(watch=False)
+        # Pagination loop to fetch all nodes
+        continue_token = None
+        while True:
+            if continue_token:
+                nodes = v1.list_node(watch=False, _continue=continue_token)
+            else:
+                nodes = v1.list_node(watch=False)
 
-        # Iterate through nodes and get their private IP addresses, instance id, subnet id
-        for node in nodes.items:
-            for address in node.status.addresses:
-                if address.type == 'InternalIP':
-                    worker_node_ips.add(address.address)
-                    try:
-                        subnet_id = get_worker_node_subnets(ec2_client, address.address)
-                        subnet_ids.add(subnet_id)
-                    except Exception as e:
-                        print(f"Error getting subnet for worker node {address.address}: {str(e)}")
+            # Iterate through nodes and get their private IP addresses, instance id, subnet id
+            for node in nodes.items:
+                for address in node.status.addresses:
+                    if address.type == 'InternalIP':
+                        worker_node_ips.add(address.address)
+                        try:
+                            subnet_id = get_worker_node_subnets(ec2_client, address.address)
+                            if subnet_id:
+                                subnet_ids.add(subnet_id)
+                        except Exception as e:
+                            print(f"Error getting subnet for worker node {address.address}: {str(e)}")
 
+            # Check if there is a continue token, meaning more results to fetch
+            continue_token = nodes.metadata._continue
+            if not continue_token:
+                break
+
+        # Fetch subnet usage info for all unique subnets
         for subnet_id in subnet_ids:
             try:
                 worker_subnet_info[subnet_id] = get_subnet_usage_info(ec2_client, subnet_id)
@@ -106,17 +118,32 @@ def get_cluster_worker_node_ips(v1, ec2_client):
 
     return worker_node_ips, worker_subnet_info
 
+
 def get_cluster_pod_ips(v1):
     print("Fetching Pod IPs...")
     pod_ips = set()
 
     try:
-        pods = v1.list_pod_for_all_namespaces(watch=False)
-        for pod in pods.items:
-            if pod.status.pod_ip:
-                pod_ips.add(pod.status.pod_ip)
+        # Pagination loop to fetch all pods
+        continue_token = None
+        while True:
+            if continue_token:
+                pods = v1.list_pod_for_all_namespaces(watch=False, _continue=continue_token)
             else:
-                print(f"Warning: Pod {pod.metadata.name} in namespace {pod.metadata.namespace} has no IP address")
+                pods = v1.list_pod_for_all_namespaces(watch=False)
+
+            # Collect Pod IPs
+            for pod in pods.items:
+                if pod.status.pod_ip:
+                    pod_ips.add(pod.status.pod_ip)
+                else:
+                    print(f"Warning: Pod {pod.metadata.name} in namespace {pod.metadata.namespace} has no IP address")
+
+            # Check if there is a continue token, meaning more results to fetch
+            continue_token = pods.metadata._continue
+            if not continue_token:
+                break
+
     except Exception as e:
         print(f"Error fetching cluster pod IPs: {str(e)}")
 
