@@ -20,9 +20,3 @@ This Python script analyzes the IP usage and related configurations of an Amazon
 - AWS CLI (configured with appropriate credentials)
 - Kubernetes Python client (`kubernetes` package)
 - Tabulate Python package (`tabulate`)
-
-Scope:
-1. Network overview over chat/call or cx to get a summary of IP usage when there is an issue
-2. Faster resolution / Cx Sentiment
-3. IRSA/ Custom Networking/ IP Exhaustion/ Prefix delegation ==> Validations
-....
