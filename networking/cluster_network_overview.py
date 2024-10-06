@@ -151,12 +151,12 @@ def get_cluster_pod_ips(v1):
 
 
 # Check CNI variable using cached aws-node DaemonSet
-def check_cni_var(api_instance, mode):
+def check_cni_var(api_instance, mode, value):
     print(f"Checking if {mode} is enabled...")
     daemonset = fetch_aws_node_daemonset(api_instance)
     if daemonset:
         env_vars = {var.name: var.value for var in daemonset.spec.template.spec.containers[0].env if var.value is not None}
-        check_variable = env_vars.get(mode, "").lower() == "true"
+        check_variable = env_vars.get(mode, "").lower() == value
         if mode not in env_vars:
             print(f"WARNING: {mode} environment variable is not set")
         return check_variable
@@ -338,10 +338,10 @@ def main():
     warm_ip_target, warm_prefix_target, warm_eni_target, minimum_ip_target = get_warm_target_values(api_instance)
 
     print("\nChecking Prefix Delegation status...")
-    prefix_delegation_enabled = check_cni_var(api_instance, "ENABLE_PREFIX_DELEGATION")
+    prefix_delegation_enabled = check_cni_var(api_instance, "ENABLE_PREFIX_DELEGATION", "true")
 
     print("\nChecking Custom Networking status...")
-    custom_networking_enabled = check_cni_var(api_instance, "AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG")
+    custom_networking_enabled = check_cni_var(api_instance, "AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG", "true")
 
     eniconfig_subnets = None
     if custom_networking_enabled:

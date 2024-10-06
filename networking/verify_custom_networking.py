@@ -2,7 +2,7 @@ import boto3
 from kubernetes import client, config
 from collections import defaultdict
 from tabulate import tabulate
-from network_overview import *
+from cluster_network_overview import get_eniconfig_subnet_ids, get_subnet_usage_info, get_cluster_worker_node_ips, check_cni_var
 import os
 from datetime import datetime
 
@@ -13,6 +13,9 @@ def write_table_to_file(table_data, headers):
     
     try:
         with open(filename, 'w') as f:
+            f.write("Custom Networking Config\n\n")
+            f.write("AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG: true\n")
+            f.write("ENI_CONFIG_LABEL_DEF: topology.kubernetes.io/zone\n\n")
             f.write("ENIConfig and Worker Node Subnet Mapping:\n\n")
             f.write(tabulate(table_data, headers=headers, tablefmt="grid", colalign=("left", "left", "left")))
         print(f"Table successfully written to file: {os.path.abspath(filename)}")
@@ -94,13 +97,10 @@ def main():
     eniconfig_subnet_data = get_eniconfig_data(custom_objects, ec2_client)
     worker_subnet_info = get_worker_subnet_data(v1, ec2_client)
 
-    #implement
-
-    check_cni_var(api_instance, "AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG")
-    check_cni_var(api_instance, "ENI_CONFIG_LABEL_DEF")
+    check_cni_var(api_instance, "AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG", "true")
+    check_cni_var(api_instance, "ENI_CONFIG_LABEL_DEF", "topology.kubernetes.io/zone")
 
     table_data = create_table_data(eniconfig_subnet_data, worker_subnet_info)
-    print_table(table_data)
 
     headers = ["Availability Zone", "Worker Node Subnet(s)", "ENIConfig Name(s) and Subnet(s)"]
     write_table_to_file(table_data, headers)
