@@ -332,13 +332,12 @@ function get_pod() {
 
   log "Identifying Owner References of Pod: \"${POD_NAME}\""
   POD_OWNER_KIND=$(echo "$POD" | sed -n '/"ownerReferences"/,/^[[:space:]]*}/ s/.*"kind": "\(.*\)".*/\1/p' | sed 's/".*//')
-  POD_OWNER_NAME=$(echo "$POD" | sed -n '/"ownerReferences"/,/^[[:space:]]*}/ s/.*"kind": "\(.*\)".*"name": "\(.*\)", "uid":.*/\2/p' | sed 's/".*//')
-
+  POD_OWNER_NAME=$(echo "$OWNER" | sed -n '/"ownerReferences"/,/^[[:space:]]*}/ s/.*"name": "\(.*\)".*/\1/p' | sed 's/".*//')
   while [ ! "${POD_OWNER_KIND}" == '' ]; do
     get_object "$POD_OWNER_KIND" "$POD_OWNER_NAME"
     local OWNER=$OBJECT
     POD_OWNER_KIND=$(echo "$OWNER" | sed -n '/"ownerReferences"/,/^[[:space:]]*}/ s/.*"kind": "\(.*\)".*/\1/p' | sed 's/".*//')
-    POD_OWNER_NAME=$(echo "$OWNER" | sed -n '/"ownerReferences"/,/^[[:space:]]*}/ s/.*"kind": "\(.*\)".*"name": "\(.*\)", "uid":.*/\2/p' | sed 's/".*//')
+    POD_OWNER_NAME=$(echo "$OWNER" | sed -n '/"ownerReferences"/,/^[[:space:]]*}/ s/.*"name": "\(.*\)".*/\1/p' | sed 's/".*//')
   done
 
   # Get Service Account details
